@@ -1,0 +1,194 @@
+<meta charset="utf-8">
+<title>Squad Planner GW3</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;450;500;600&display=swap">
+<link rel="stylesheet" href="styles.css">
+
+
+<div class="wrap">
+
+  <div class="banner">
+    <strong>MOCKUP — not system output</strong>
+    <span>Screen concept for the Phase&nbsp;8 Squad Planner, redrawn against the store as of <span class="num">29&nbsp;Aug&nbsp;15:45 local</span>. Every number is either read from <code style="font-family:var(--mono);font-size:12px">data/store/</code> or fabricated, and the two are marked apart everywhere they appear. <b>Phase&nbsp;2 closed on 29&nbsp;Aug</b>, so the hatching has moved since the 24&nbsp;Aug draw — see what changed, below.</span>
+  </div>
+
+  <!-- ---------- THE SCREEN ---------- -->
+  <div class="app">
+
+    <div class="topbar">
+      <div class="brand"><b>FPL-AI</b><span class="slash">/</span><em>Squad Planner</em></div>
+      <div class="stat"><span class="k">Gameweek</span><span class="v">3 <small>· next</small></span></div>
+      <div class="stat"><span class="k">Deadline</span><span class="v">Sat 5 Sep 01:30 <small>(4 Sep 17:30 UTC)</small></span></div>
+      <div class="stat"><span class="k">Squad value</span><span class="v">£99.6m</span></div>
+      <div class="stat"><span class="k">Bank</span><span class="v">£0.5m</span></div>
+      <div class="stat"><span class="k">Free transfers</span><span class="v">1 <small>/ max 5</small></span></div>
+      <div class="stat"><span class="k">Chips</span><span class="v">WC · BB · TC · FH</span></div>
+    </div>
+
+    <div class="season" id="season"></div>
+
+    <div class="freshness">
+      <div class="f"><span class="dot ok"></span><b>Ownership &amp; prices</b> — 288 snapshots, last 29 Aug 15:45 local</div>
+      <div class="f"><span class="dot ok"></span><b>Effective ownership</b> — GW1 sampled 25 Aug · <span class="num">9,284 entries</span> · 139,260 picks</div>
+      <div class="f"><span class="dot ok"></span><b>GW3 match odds</b> — 10 fixtures, 13–15 books, captured 27 Aug 21:39 local</div>
+      <div class="f"><span class="dot stale"></span><b>Anytime-goal odds</b> — GW2 fixtures only, 2 books · <span class="num">GW3 market not captured</span></div>
+      <div class="f"><span class="dot none"></span><b>Fixture table</b> — <code style="font-family:var(--mono);font-size:11px">pl_match_fixtures</code> holds matchweek 1 only</div>
+      <div class="f"><span class="dot stale"></span><b>GW2 in flight</b> — 1 of 11 XI played; nothing here is actionable until it settles</div>
+    </div>
+
+    <div class="grid">
+
+      <!-- -- squad rail -- -->
+      <div class="rail">
+        <div class="head"><span class="eyebrow">Current squad</span><span class="eyebrow" id="railNote">15 players</span></div>
+        <div class="railkey"><span>£</span><span>EO</span></div>
+        <div class="posgroup" id="railBody"></div>
+      </div>
+
+      <!-- -- candidate matrix -- -->
+      <div class="matrix">
+        <div class="mhead">
+          <h2>The Tzolis slot</h2>
+          <p>Midfielders affordable within <span class="num">£7.0m</span> (sale price £6.5m + £0.5m bank), sorted by projected points. Tzolis is on the watchlist rather than the block — <span class="num">26.1%</span> owned, second-best goal probability in the squad on the GW2 market, and <span class="num">94.3%</span> of the way to a price rise, against a rotation risk the GW2 intel flagged and no served model can price. Select a row to preview the swap.</p>
+        </div>
+        <div class="tablewrap">
+          <table>
+            <thead>
+              <tr>
+                <th class="l">Player<span class="prov o">Observed</span></th>
+                <th>£<span class="prov o">Observed</span></th>
+                <th>Own %<span class="prov o">Observed</span></th>
+                <th>10-day<span class="prov o">Observed</span></th>
+                <th>EO · C<span class="prov o">Observed</span></th>
+                <th>GW1 pts<span class="prov o">Observed</span></th>
+                <th>xGI · DC<span class="prov o">Observed</span></th>
+                <th>GW3<span class="prov o">Observed</span></th>
+                <th>P(start)<span class="prov m">Model built</span></th>
+                <th>P(G)/P(A)<span class="prov m">Model built</span></th>
+                <th>xPts<span class="prov g">Not built</span></th>
+                <th>P(10+)<span class="prov g">Not built</span></th>
+              </tr>
+            </thead>
+            <tbody id="matrixBody"></tbody>
+          </table>
+        </div>
+        <div class="legend">
+          <div class="li"><span class="swatch o"></span><b>Observed</b> — in the bitemporal store, stamped <span class="num">observed_at</span></div>
+          <div class="li"><span class="swatch m"></span><b>Model built, not served</b> — all six Phase&nbsp;2 models pass the E5 gate; the per-player GW3 values shown are invented</div>
+          <div class="li"><span class="swatch g"></span><b>Not built</b> — invented outright; needs the correlated Monte Carlo and the solver, Phases 3–5</div>
+        </div>
+
+        <div class="strips">
+          <div class="strip">
+            <span class="eyebrow">GW3 fixtures, de-vigged 1X2 <span class="pill o">Observed</span></span>
+            <div class="fxlist" id="fixtures"></div>
+            <p class="stripnote">Home · draw · away, median inverse price across 13–15 books, normalised. Captured 27 Aug 21:39 local from <code>odds_match_odds</code> — the odds feed knows the GW3 fixture list that the fixture table does not.</p>
+          </div>
+          <div class="strip">
+            <span class="eyebrow">GW1 effective ownership, top 10 <span class="pill o">Observed</span></span>
+            <div class="eolist" id="eoBody"></div>
+            <p class="stripnote">Solid bar is EO — <code>sum(multiplier) / entries</code>; the tick behind it is plain ownership. Right column is captaincy share. From 9,284 sampled entries. <b>This is the dataset that cannot be backfilled.</b></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- -- detail -- -->
+      <div class="detail" id="detail"></div>
+
+    </div>
+  </div>
+
+  <!-- ---------- NOTES ---------- -->
+  <div class="notes">
+    <hr class="hr">
+
+    <div>
+      <span class="eyebrow">Reading the mockup</span>
+      <h2 style="margin-top:6px">What is real, and what is a placeholder</h2>
+    </div>
+    <p>The screen above is deliberately built so the hatching maps onto the project's actual state. <b>Solid cells are query results</b> — names, prices, ownership, the ownership trajectories, effective ownership and captaincy share, GW1 minutes, points, xG, xA and defensive contributions, the GW3 match market, and the scoring constants used to shape the distribution all come out of <code style="font-family:var(--mono);font-size:12px">data/store/</code>. <b>Hatched cells are invented</b>, and the hatch colour says why: violet where a model exists but nothing serves it into a planner, orange where the model itself does not exist yet.</p>
+
+    <div class="provtable">
+      <table>
+        <thead>
+          <tr><th class="l">Column</th><th class="l">Status</th><th class="l">Source, or what would make it real</th><th class="l">Dataset / epic</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Name · team · price · ownership</td><td><span class="chip o">Observed</span></td><td>Bootstrap snapshot every 30 min since 19 Aug; 288 observations</td><td class="mono">elements</td></tr>
+          <tr><td>10-day ownership trajectory</td><td><span class="chip o">Observed</span></td><td>Same series, plotted from first to latest <code>observed_at</code></td><td class="mono">elements</td></tr>
+          <tr class="hi"><td>Effective ownership, captaincy share</td><td><span class="chip o">Observed</span></td><td><b>Changed since 24 Aug.</b> First sample taken 25 Aug: 9,284 entries, 139,260 picks, 6,719 automatic substitutions. EO is <code>sum(multiplier)/entries</code>, computed not modelled. Still one gameweek only — a level, not yet a trajectory</td><td class="mono">picks · E8</td></tr>
+          <tr><td>GW1 minutes · points · xG · xA · DC</td><td><span class="chip o">Observed</span></td><td>Settled GW1 element rows, read as of the GW2 deadline so GW2 cannot leak in</td><td class="mono">elements</td></tr>
+          <tr class="hi"><td>GW3 fixtures and 1X2 probabilities</td><td><span class="chip o">Observed</span></td><td><b>Changed since 24 Aug.</b> 10 fixtures at 13–15 books, de-vigged by averaging inverse prices. Arrived through the odds feed, not the fixture ingest</td><td class="mono">odds_match_odds</td></tr>
+          <tr><td>Anytime-goal probability</td><td><span class="chip g">Not captured</span></td><td>The 27 Aug capture covers <b>GW2</b> fixtures at 2 books, which says nothing about GW3 opponents. A GW3 capture is one scheduled run away — and the market omits FPL-relevant players outright (Rogers had no price at either UK book on 27 Aug)</td><td class="mono">odds_player_goal_odds</td></tr>
+          <tr><td>Scoring constants (MID goal 5, assist 3, DC 2, CS 1)</td><td><span class="chip o">Observed</span></td><td>Read live from game config, never hardcoded</td><td class="mono">game_config</td></tr>
+          <tr class="hi"><td>P(start), expected minutes</td><td><span class="chip m">Model built</span></td><td>114 folds, 86,755 OOS rows. Log-loss 0.3440, Brier 0.1069, ECE 0.0131, calibration slope 0.972 after nested out-of-sample isotonic recalibration. <b>Verdict PASS.</b> Not wired to any planner, and there is no GW3 feature row to score</td><td class="mono">E5 · Phase 2</td></tr>
+          <tr class="hi"><td>P(goal), P(assist)</td><td><span class="chip m">Model built</span></td><td><b>New since 24 Aug.</b> 143 folds, 43,505 OOS rows. Goals log-loss 0.2347, slope 0.969 — PASS. Assists 0.2370, slope 0.847 — PASS with accepted departure. Binomial thinning of team goals, so the output <i>is</i> the share</td><td class="mono">E5 · Phase 2</td></tr>
+          <tr><td>Defensive-contribution points</td><td><span class="chip m">Model built</span></td><td>Both groups gated. Thresholds now <b>pinned by observation</b> (DEF 10, MID/FWD 12) and resolved as-of, <code>verified=True</code> — the press-only dependency is closed</td><td class="mono">E5 · Phase 2</td></tr>
+          <tr class="hi"><td>Bonus points</td><td><span class="chip m">Model built</span></td><td><b>New since 24 Aug.</b> 223 folds, 160,992 OOS rows, log-loss 0.1881. PMF derived from a Monte Carlo over the whole fixture, because bonus is a rank-within-fixture phenomenon. Underconfident on 3 of 4 classes (slopes 1.089–2.219) — accepted, that is the safe direction</td><td class="mono">E5 · Phase 2</td></tr>
+          <tr class="hi"><td>Cards and discipline</td><td><span class="chip m">Model built</span></td><td><b>New since 24 Aug.</b> 219 folds, 64,531 OOS rows. <code>RED</code> is <b>base-rate only</b> (slope −0.064, CI spanning zero) and is excluded from anything downstream. <code>NONE</code>/<code>YELLOW</code> are <b>overconfident</b> (slopes 0.592/0.630) and carry a blocking condition on Phase 3: isotonic layer required before the optimiser consumes them</td><td class="mono">E5 · Phase 2</td></tr>
+          <tr><td>Team strength</td><td><span class="chip m">Model built</span></td><td>Dixon-Coles on xG, 2,280 matches over 6 seasons, walk-forward gate built for this report. <code>DRAW</code> declared base-rate only (slope 0.147) — draws measured as unpredictable rather than assumed so</td><td class="mono">E5 · Phase 2</td></tr>
+          <tr><td>xPts distribution, P(10+)</td><td><span class="chip g">Not built</span></td><td>Every input now exists. What is missing is the <b>correlated Monte Carlo</b> that joins six independently-gated models into one player-gameweek PMF, and the feature row to run it on</td><td class="mono">E5, E8 · Phases 2, 5</td></tr>
+          <tr><td>Rank-EV, top-10% probability</td><td><span class="chip g">Not built</span></td><td>The rank-aware objective. The EO level now exists for one gameweek; the objective needs a series, and the code does not exist either way</td><td class="mono">E8 · Phase 5</td></tr>
+          <tr><td>Solver verdict, 5-GW horizon</td><td><span class="chip g">Not built</span></td><td>Single-period MILP, then rolling horizon with transfers and hits. <b>The next phase.</b> Its gate is the one that matters: beat ~2,100 over 2+ backtested seasons, ideally the 2,146 career average</td><td class="mono">E6, E7 · Phases 3, 4</td></tr>
+          <tr><td>GW4–GW7 fixture strip</td><td><span class="chip g">Not ingested</span></td><td>Fixture backfill still covers matchweek 1. <code>pl_match_fixtures.matchweek</code> also diverges from FPL's <code>round</code> on 4.4% of matches, which gates the 832,890 already-ingested team-match rows behind it</td><td class="mono">pl_match_fixtures</td></tr>
+          <tr><td>"Why 0 minutes?" explanations</td><td><span class="chip g">Not built</span></td><td>News extraction with source tiers and bounded log-odds updates. Referee assignment was <b>measured</b> at +0.0002 log-loss and the announcement-time capability cancelled on that evidence</td><td class="mono">E10 · Phase 7</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="cols">
+      <div class="card hi">
+        <h3>What changed since the 24 August draw</h3>
+        <ul>
+          <li><b>The EO column went teal.</b> It was the one orange cell that could never be recovered later; the first sample landed 25 Aug and the numbers on this screen are computed from it, not modelled.</li>
+          <li><b>Phase 2 closed.</b> Six models, 16 scored outcomes: <span class="num">3 PASS</span>, <span class="num">11 PASS-with-accepted-departure</span>, <span class="num">2 BASE-RATE-ONLY</span>, <span class="num">0 FAIL</span>. Four of the violet columns here did not exist five days ago.</li>
+          <li><b>GW3 fixtures arrived sideways</b> — through the odds feed rather than the fixture ingest, which is still stuck on matchweek 1.</li>
+          <li><b>The anytime-goal column went the other way.</b> It was solid on 24 Aug; for a GW3 decision there is no capture at all.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>The one placeholder that is still time-critical</h3>
+        <p>GW1 is banked. <b>GW2 is not</b> — the sample is due Tuesday 1 Sep, evening local, once the gameweek settles, and it takes about 83 minutes.</p>
+        <p>It stays deliberately manual because heartbeat data shows the machine is reliably off across the morning and, since 26 Aug, across the small hours too. A scheduled run inside that window neither fires nor catches up. The same off-window now straddles the 01:30 local deadline, so the most valuable ownership snapshots of the week are being missed as well.</p>
+      </div>
+      <div class="card">
+        <h3>Why xPts is still orange with every input built</h3>
+        <p>All six models pass their gate independently. A player's gameweek score is not independent of them — minutes gate everything, a goal and a clean sheet are negatively correlated through the same match, bonus is a rank <i>within</i> a fixture rather than a property of a player.</p>
+        <p>Convolving six marginals as if they were independent produces a distribution that is confidently wrong in the tail, which is exactly the region a rank-aware objective is bought for. The two curves in the detail panel are that naive convolution, drawn with the real scoring constants — a shape to argue about, not a number to trust.</p>
+      </div>
+    </div>
+
+    <div class="cols">
+      <div class="card">
+        <h3>What the EO sample immediately showed</h3>
+        <ul>
+          <li><b>Haaland at 121.7 EO</b> from 70.3% ownership — a 51-point premium bought entirely by the armband, at a <span class="num">50.6%</span> captaincy share. Not captaining him is a live, expensive, and now measurable decision.</li>
+          <li><b>Ownership and EO diverge in both directions.</b> Calvert-Lewin owned by 32.2% carried only 27.1 EO — benched or auto-subbed by 18% of the managers who owned him. Isak went the other way, 17.0% owned to 20.2 EO.</li>
+          <li><b>Captaincy is a two-horse race and the second horse is cheap.</b> B.Fernandes took 17.6% of armbands; nobody else cleared 7%.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Where the season actually is</h3>
+        <p><b>GW1: 43 against a 50 average</b>, overall rank 6,382,778, 75th percentile. <b>GW2 in progress</b> and going well — 26 points from the captain alone with ten XI players still to play, rank provisionally 4,461,715 and the 40th percentile.</p>
+        <p>The one transfer made, Gibbs-White to Rogers, was decided on <b>fixture rather than fitness</b> — specifically so the call resolved before the user slept, instead of depending on a Friday presser landing after a 01:30 deadline. That shape is the requirement, not the anecdote.</p>
+      </div>
+      <div class="card">
+        <h3>The blocking condition on the next phase</h3>
+        <p>The cards model passes its gate and is still not safe to consume. <code>NONE</code> and <code>YELLOW</code> come back <b>overconfident</b> — slopes 0.592 and 0.630, confidence intervals nowhere near 1.0 — and an optimiser that inherits an over-claiming probability makes over-confident transfers with it.</p>
+        <p>The remedy is already proven in this codebase: the minutes model went from slope 1.114 and ECE 0.0507 to 0.972 and 0.0131 with a nested out-of-sample isotonic layer. <b>Phase 3 does not start on cards until that layer exists.</b></p>
+      </div>
+    </div>
+
+    <hr class="hr">
+    <p class="foot">
+      Mockup redrawn 29 Aug 2026, afternoon local · store snapshot <span>2026-08-29T07:45:01Z</span><br>
+      Observed values queried from data/store/{elements, picks, odds_match_odds, teams, events, game_config} · hatched values fabricated for illustration<br>
+      Squad value, bank, free transfers and chip inventory are read from the user's own FPL entry, not from the store — the picks sample covers 9,284 other entries and never this one<br>
+      Track A output, not system output. Nothing on this screen was produced by the optimiser, because the optimiser does not exist yet.
+    </p>
+  </div>
+</div>
+
+<script src="data.js"></script>
+<script src="app.js"></script>

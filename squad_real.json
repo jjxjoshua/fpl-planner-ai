@@ -1,0 +1,167 @@
+[
+ {
+  "web_name": "Haaland",
+  "now_cost": 155,
+  "selected_by_percent": "69.4",
+  "element_type": 4,
+  "team": 15,
+  "form": "0.0",
+  "ep_next": "4.0",
+  "status": "a",
+  "chance_of_playing_next_round": null
+ },
+ {
+  "web_name": "Jo\u00e3o Pedro",
+  "now_cost": 75,
+  "selected_by_percent": "63.7",
+  "element_type": 4,
+  "team": 6,
+  "form": "0.0",
+  "ep_next": "2.4",
+  "status": "a",
+  "chance_of_playing_next_round": null
+ },
+ {
+  "web_name": "B.Fernandes",
+  "now_cost": 120,
+  "selected_by_percent": "51.4",
+  "element_type": 3,
+  "team": 16,
+  "form": "0.0",
+  "ep_next": "4.0",
+  "status": "a",
+  "chance_of_playing_next_round": null
+ },
+ {
+  "web_name": "Szoboszlai",
+  "now_cost": 70,
+  "selected_by_percent": "41.7",
+  "element_type": 3,
+  "team": 14,
+  "form": "0.0",
+  "ep_next": "2.5",
+  "status": "a",
+  "chance_of_playing_next_round": null
+ },
+ {
+  "web_name": "Tzolis",
+  "now_cost": 65,
+  "selected_by_percent": "22.9",
+  "element_type": 3,
+  "team": 1,
+  "form": "0.0",
+  "ep_next": "2.3",
+  "status": "a",
+  "chance_of_playing_next_round": null
+ },
+ {
+  "web_name": "Gibbs-White",
+  "now_cost": 80,
+  "selected_by_percent": "11.8",
+  "element_type": 3,
+  "team": 18,
+  "form": "0.0",
+  "ep_next": "2.8",
+  "status": "a",
+  "chance_of_playing_next_round": null
+ },
+ {
+  "web_name": "Gabriel",
+  "now_cost": 80,
+  "selected_by_percent": "29.7",
+  "element_type": 2,
+  "team": 1,
+  "form": "0.0",
+  "ep_next": "4.0",
+  "status": "a",
+  "chance_of_playing_next_round": null
+ },
+ {
+  "web_name": "Shaw",
+  "now_cost": 45,
+  "selected_by_percent": "21.5",
+  "element_type": 2,
+  "team": 16,
+  "form": "0.0",
+  "ep_next": "1.7",
+  "status": "a",
+  "chance_of_playing_next_round": null
+ },
+ {
+  "web_name": "Van Hecke",
+  "now_cost": 50,
+  "selected_by_percent": "9.5",
+  "element_type": 2,
+  "team": 19,
+  "form": "0.0",
+  "ep_next": "2.2",
+  "status": "a",
+  "chance_of_playing_next_round": null
+ },
+ {
+  "web_name": "Diop",
+  "now_cost": 40,
+  "selected_by_percent": "18.2",
+  "element_type": 2,
+  "team": 12,
+  "form": "0.0",
+  "ep_next": "1.0",
+  "status": "a",
+  "chance_of_playing_next_round": null
+ },
+ {
+  "web_name": "Lammens",
+  "now_cost": 50,
+  "selected_by_percent": "17.1",
+  "element_type": 1,
+  "team": 16,
+  "form": "0.0",
+  "ep_next": "2.6",
+  "status": "a",
+  "chance_of_playing_next_round": null
+ },
+ {
+  "web_name": "Dubravka",
+  "now_cost": 40,
+  "selected_by_percent": "20.3",
+  "element_type": 1,
+  "team": 19,
+  "form": "0.0",
+  "ep_next": "1.0",
+  "status": "a",
+  "chance_of_playing_next_round": null
+ },
+ {
+  "web_name": "van Ewijk",
+  "now_cost": 40,
+  "selected_by_percent": "14.1",
+  "element_type": 2,
+  "team": 7,
+  "form": "0.0",
+  "ep_next": "1.0",
+  "status": "a",
+  "chance_of_playing_next_round": null
+ },
+ {
+  "web_name": "Hughes",
+  "now_cost": 40,
+  "selected_by_percent": "0.2",
+  "element_type": 2,
+  "team": 11,
+  "form": "0.0",
+  "ep_next": "0.0",
+  "status": "i",
+  "chance_of_playing_next_round": 0
+ },
+ {
+  "web_name": "Kusi-Asare",
+  "now_cost": 45,
+  "selected_by_percent": "7.5",
+  "element_type": 4,
+  "team": 10,
+  "form": "0.0",
+  "ep_next": "1.0",
+  "status": "a",
+  "chance_of_playing_next_round": null
+ }
+]

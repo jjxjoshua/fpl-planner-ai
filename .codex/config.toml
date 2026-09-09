@@ -1,0 +1,9 @@
+# Project-scoped Codex configuration.
+#
+# Legacy WebStorm MCP endpoint from .mcp.json was unreachable during migration on
+# 2026-09-10, so it is intentionally disabled until transport compatibility is
+# verified. Enable only after confirming this endpoint speaks a Codex-supported
+# MCP transport.
+#
+# [mcp_servers.webstorm]
+# url = "http://127.0.0.1:64748/stream"

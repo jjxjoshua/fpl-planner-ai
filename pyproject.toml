@@ -1,0 +1,33 @@
+[project]
+name = "fplai"
+version = "0.1.0"
+description = "Rank-aware FPL decision system — ingest, models, optimiser."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "requests>=2.32",
+    "polars>=1.9",
+    "duckdb>=1.1",
+    "tzdata>=2024.1",
+    "numpy>=2.4.6",
+    "scipy>=1.17.1",
+    "highspy>=1.15.1",
+]
+
+[build-system]
+requires = ["uv_build>=0.12.5,<0.13.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "slow: reads the real data/store/ (not a duration threshold). Never deselected by default; only `-m \"not slow\"` skips it.",
+]

@@ -1,0 +1,1131 @@
+<title>Squad Planner GW3</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;450;500;600&display=swap">
+<style>
+:root{
+  --ground:#EAEBE5;
+  --surface:#F8F8F5;
+  --surface-2:#FDFDFB;
+  --ink:#14181A;
+  --ink-2:#4A5254;
+  --ink-3:#7C8486;
+  --rule:#D3D5CD;
+  --rule-2:#BFC2B9;
+  --live:#0E6F63;
+  --live-soft:#DCEBE7;
+  --model:#6B4A9C;
+  --model-soft:#E6E0F0;
+  --gap:#9C4A2A;
+  --gap-soft:#F0E1DA;
+  --warn:#94690C;
+  --hatch:rgba(20,24,26,.16);
+  --shadow:0 1px 2px rgba(20,24,26,.06), 0 12px 32px -18px rgba(20,24,26,.35);
+  --mono:"IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --sans:"IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --disp:"Archivo", "IBM Plex Sans", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#0E1113;
+    --surface:#161A1C;
+    --surface-2:#1D2224;
+    --ink:#E8E9E3;
+    --ink-2:#A3ABAD;
+    --ink-3:#727A7C;
+    --rule:#2A3033;
+    --rule-2:#3A4245;
+    --live:#4FBCAA;
+    --live-soft:#12312D;
+    --model:#AE93E0;
+    --model-soft:#2A2338;
+    --gap:#DD8659;
+    --gap-soft:#332016;
+    --warn:#D6A63A;
+    --hatch:rgba(232,233,227,.15);
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 12px 34px -18px rgba(0,0,0,.8);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0E1113;
+  --surface:#161A1C;
+  --surface-2:#1D2224;
+  --ink:#E8E9E3;
+  --ink-2:#A3ABAD;
+  --ink-3:#727A7C;
+  --rule:#2A3033;
+  --rule-2:#3A4245;
+  --live:#4FBCAA;
+  --live-soft:#12312D;
+  --model:#AE93E0;
+  --model-soft:#2A2338;
+  --gap:#DD8659;
+  --gap-soft:#332016;
+  --warn:#D6A63A;
+  --hatch:rgba(232,233,227,.15);
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 12px 34px -18px rgba(0,0,0,.8);
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--ground); color:var(--ink);
+  font-family:var(--sans); font-size:15px; line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1440px; margin:0 auto; padding:28px 20px 80px; display:flex; flex-direction:column; gap:26px}
+h1,h2,h3,h4{font-family:var(--disp); margin:0; text-wrap:balance; letter-spacing:-.012em}
+.eyebrow{
+  font-family:var(--disp); font-size:10.5px; font-weight:600;
+  letter-spacing:.13em; text-transform:uppercase; color:var(--ink-3);
+}
+.num{font-family:var(--mono); font-variant-numeric:tabular-nums}
+
+/* -- mockup banner ----------------------------------- */
+.banner{
+  display:flex; flex-wrap:wrap; align-items:baseline; gap:8px 16px;
+  border:1px solid var(--rule-2); border-left:3px solid var(--gap);
+  background:var(--surface); padding:12px 16px; border-radius:3px;
+}
+.banner strong{font-family:var(--disp); font-size:13px; letter-spacing:.02em}
+.banner span{font-size:13px; color:var(--ink-2)}
+
+/* -- app chrome -------------------------------------- */
+.app{
+  background:var(--surface); border:1px solid var(--rule-2); border-radius:5px;
+  box-shadow:var(--shadow); overflow:hidden;
+}
+.topbar{
+  display:flex; flex-wrap:wrap; align-items:center; gap:10px 26px;
+  padding:13px 18px; border-bottom:1px solid var(--rule); background:var(--surface-2);
+}
+.brand{display:flex; align-items:baseline; gap:10px; margin-right:auto}
+.brand b{font-family:var(--disp); font-weight:700; font-size:15px; letter-spacing:-.02em}
+.brand .slash{color:var(--rule-2)}
+.brand em{font-style:normal; font-family:var(--disp); font-weight:500; font-size:15px; color:var(--ink-2)}
+.stat{display:flex; flex-direction:column; gap:1px; min-width:0}
+.stat .k{font-family:var(--disp); font-size:9.5px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; color:var(--ink-3)}
+.stat .v{font-family:var(--mono); font-size:13.5px; font-weight:500; font-variant-numeric:tabular-nums; white-space:nowrap}
+.stat .v small{color:var(--ink-3); font-size:11px}
+
+/* -- season strip (Track A) -------------------------- */
+.season{
+  display:flex; flex-wrap:wrap; align-items:center; gap:10px 26px;
+  padding:10px 18px; border-bottom:1px solid var(--rule); background:var(--surface);
+}
+.sitem{display:flex; flex-direction:column; gap:0}
+.sitem.live{box-shadow:inset 2px 0 0 var(--live); padding-left:10px; margin-left:-4px}
+.sitem .sk{font-family:var(--disp); font-size:9.5px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; color:var(--ink-3)}
+.sitem .sv{font-family:var(--mono); font-size:13.5px; font-variant-numeric:tabular-nums}
+.sitem .sv b{font-size:16px; font-weight:600}
+.sitem .sv small{color:var(--ink-3); font-size:11px}
+.sitem .sv b.up{color:var(--live)}
+.sitem .sv b.dn{color:var(--gap)}
+.sitem .sm{font-family:var(--mono); font-size:10.5px; color:var(--ink-3); font-variant-numeric:tabular-nums}
+.sarrow{color:var(--rule-2); font-size:17px; margin:0 -12px}
+
+.freshness{
+  display:flex; flex-wrap:wrap; gap:6px 20px; padding:8px 18px;
+  border-bottom:1px solid var(--rule); background:var(--surface);
+  font-size:11.5px; color:var(--ink-2);
+}
+.freshness .f{display:flex; align-items:center; gap:7px}
+.freshness .f b{font-weight:500; color:var(--ink)}
+.dot{width:7px; height:7px; border-radius:50%; flex:none}
+.dot.ok{background:var(--live)}
+.dot.stale{background:var(--warn)}
+.dot.none{background:var(--gap)}
+
+.grid{display:grid; grid-template-columns:220px minmax(0,1fr) 322px}
+@media (max-width:1180px){ .grid{grid-template-columns:1fr} }
+
+/* -- squad rail -------------------------------------- */
+.rail{border-right:1px solid var(--rule); padding:14px 0 18px}
+@media (max-width:1180px){ .rail{border-right:none; border-bottom:1px solid var(--rule)} }
+.rail .head{padding:0 14px 10px; display:flex; align-items:baseline; justify-content:space-between}
+.railkey{
+  display:grid; grid-template-columns:1fr auto auto; gap:9px; padding:0 14px 2px;
+  font-family:var(--disp); font-size:8.5px; font-weight:600; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--ink-3);
+}
+.railkey span:first-child{grid-column:2; text-align:right; min-width:26px}
+.railkey span:last-child{text-align:right; min-width:30px; color:var(--live)}
+.posgroup{padding:0 8px}
+.poslabel{
+  font-family:var(--disp); font-size:9.5px; font-weight:600; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--ink-3); padding:11px 6px 5px;
+}
+.pl{
+  display:grid; grid-template-columns:1fr auto auto auto; align-items:center; gap:7px;
+  padding:5px 6px; border-radius:3px; font-size:12.5px;
+}
+.pl .nm{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.pl .tm{font-family:var(--mono); font-size:10px; color:var(--ink-3); letter-spacing:.03em}
+.pl .pr{font-family:var(--mono); font-size:11.5px; color:var(--ink-2); font-variant-numeric:tabular-nums; min-width:26px; text-align:right}
+.pl .eoc{
+  font-family:var(--mono); font-size:11.5px; color:var(--live);
+  font-variant-numeric:tabular-nums; min-width:30px; text-align:right;
+}
+.cb{
+  font-family:var(--disp); font-size:8px; font-weight:700; letter-spacing:.08em;
+  padding:1px 3px; border-radius:2px; margin-left:5px; vertical-align:1px;
+}
+.cb.c{background:var(--live); color:var(--surface)}
+.cb.v{background:var(--rule-2); color:var(--surface)}
+.cb.n{background:var(--live-soft); color:var(--live)}
+.pl.out{background:var(--gap-soft); box-shadow:inset 2px 0 0 var(--gap)}
+.pl.out .nm{font-weight:600}
+.pl.inn{background:var(--live-soft); box-shadow:inset 2px 0 0 var(--live)}
+.pl.inn .nm{font-weight:600}
+.pl.flag .nm::after{content:"\271A "; color:var(--warn); font-size:10px; margin-left:5px; vertical-align:1px}
+.bench{margin-top:12px; padding-top:10px; border-top:1px dashed var(--rule-2)}
+
+/* -- matrix ------------------------------------------ */
+.matrix{padding:14px 0 0; min-width:0}
+.mhead{padding:0 18px 12px; display:flex; flex-wrap:wrap; gap:6px 14px; align-items:baseline}
+.mhead h2{font-size:17px; font-weight:600}
+.mhead p{margin:0; font-size:12.5px; color:var(--ink-2); flex-basis:100%}
+.tablewrap{overflow-x:auto}
+table{border-collapse:collapse; width:100%; font-size:12px}
+thead th{
+  font-family:var(--disp); font-size:9.5px; font-weight:600; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--ink-3); text-align:right;
+  padding:7px 4px; border-bottom:1px solid var(--rule-2); white-space:nowrap;
+  position:relative;
+}
+thead th.l{text-align:left}
+thead th .prov{display:block; font-size:8px; letter-spacing:.08em; margin-top:2px; font-weight:600}
+thead th .prov.o{color:var(--live)}
+thead th .prov.m{color:var(--model)}
+thead th .prov.g{color:var(--gap)}
+tbody td{padding:0; border-bottom:1px solid var(--rule)}
+tbody tr:last-child td{border-bottom:none}
+.cand{display:contents}
+.cell{padding:7px 4px; text-align:right; font-family:var(--mono); font-variant-numeric:tabular-nums; white-space:nowrap}
+.cell.l{text-align:left; font-family:var(--sans)}
+.who{display:flex; align-items:baseline; gap:6px; padding:8px 5px 8px 12px}
+.who .n{font-weight:600; font-size:12.5px}
+.who .t{font-family:var(--mono); font-size:10px; color:var(--ink-3); letter-spacing:.04em}
+.who .tag{
+  font-family:var(--disp); font-size:8.5px; font-weight:700; letter-spacing:.09em;
+  text-transform:uppercase; padding:1px 5px; border-radius:2px;
+}
+.tag.outg{background:var(--gap-soft); color:var(--gap)}
+.tag.sel{background:var(--live-soft); color:var(--live)}
+.tag.warnt{background:var(--gap-soft); color:var(--warn); cursor:help}
+.cell.hot{color:var(--live)}
+.cell.cold{color:var(--gap)}
+tr.row{cursor:pointer; transition:background .12s}
+tr.row:hover{background:var(--surface-2)}
+tr.row.active{background:var(--live-soft)}
+tr.row.active .who .n{color:var(--live)}
+tr.row:focus-visible{outline:2px solid var(--live); outline-offset:-2px}
+tr.outrow{background:var(--gap-soft)}
+tr.outrow:hover{background:var(--gap-soft)}
+.delta.up{color:var(--live)}
+.delta.dn{color:var(--gap)}
+.spark{display:block}
+
+/* fabricated cells */
+.fab{position:relative}
+.fab::before{
+  content:""; position:absolute; inset:2px 1px;
+  background:repeating-linear-gradient(135deg, transparent 0 4px, var(--hatch) 4px 5px);
+  pointer-events:none; border-radius:2px;
+}
+.fab > *{position:relative}
+.fab .v{opacity:.82}
+.fab.m .v{color:var(--model)}
+.fab.g .v{color:var(--gap)}
+
+.legend{
+  display:flex; flex-wrap:wrap; gap:8px 22px; padding:12px 18px;
+  border-top:1px solid var(--rule); background:var(--surface-2); font-size:11.5px;
+}
+.legend .li{display:flex; align-items:center; gap:8px; color:var(--ink-2)}
+.legend .swatch{width:22px; height:13px; border-radius:2px; border:1px solid var(--rule-2); flex:none}
+.legend .swatch.o{background:var(--live-soft); border-color:var(--live)}
+.legend .swatch.m{background:repeating-linear-gradient(135deg, var(--model-soft) 0 4px, var(--hatch) 4px 5px); border-color:var(--model)}
+.legend .swatch.g{background:repeating-linear-gradient(135deg, var(--gap-soft) 0 4px, var(--hatch) 4px 5px); border-color:var(--gap)}
+.legend b{color:var(--ink); font-weight:600}
+
+/* -- strips under the matrix ------------------------- */
+.strips{
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(268px,1fr)); gap:0;
+  border-top:1px solid var(--rule);
+}
+.strip{padding:13px 18px 15px; display:flex; flex-direction:column; gap:9px; min-width:0}
+.strip + .strip{border-left:1px solid var(--rule)}
+@media (max-width:640px){ .strip + .strip{border-left:none; border-top:1px solid var(--rule)} }
+.strip > .eyebrow{display:flex; align-items:center; gap:7px}
+.stripnote{margin:0; font-size:11px; color:var(--ink-3); line-height:1.55}
+.stripnote b{color:var(--ink-2); font-weight:600}
+.stripnote code{font-family:var(--mono); font-size:10px; color:var(--ink-2)}
+
+.fxlist{display:flex; flex-direction:column; gap:3px}
+.fx{display:grid; grid-template-columns:78px 1fr 62px; align-items:center; gap:9px; font-size:11.5px}
+.fx .fk{font-family:var(--mono); font-size:10.5px; color:var(--ink-2); white-space:nowrap}
+.fx .fk i{color:var(--ink-3); font-style:normal}
+.fx .fv{font-family:var(--mono); font-size:10.5px; text-align:right; color:var(--ink-2); font-variant-numeric:tabular-nums}
+.fx .fv.hot{color:var(--live); font-weight:500}
+.fbar{display:flex; height:8px; border-radius:1px; overflow:hidden; background:var(--rule)}
+.fbar.big{height:12px}
+.fbar i{display:block; height:100%}
+.fbar i.h{background:var(--live)}
+.fbar i.d{background:var(--rule-2)}
+.fbar i.a{background:var(--model)}
+
+.eolist{display:flex; flex-direction:column; gap:3px}
+.eor{display:grid; grid-template-columns:82px 1fr 42px 44px; align-items:center; gap:8px; font-size:11.5px}
+.eor .en{overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:11.5px}
+.eor .ebar{position:relative; height:9px; background:var(--rule); border-radius:1px; overflow:hidden}
+.eor .ebar i{position:absolute; inset:0 auto 0 0; background:var(--live); border-radius:1px}
+.eor .ebar u{position:absolute; top:0; bottom:0; width:2px; background:var(--ink-3); opacity:.75}
+.eor .ev{font-family:var(--mono); font-size:11px; text-align:right; font-variant-numeric:tabular-nums}
+.eor .ec{font-family:var(--mono); font-size:10.5px; text-align:right; color:var(--ink-3); font-variant-numeric:tabular-nums}
+
+/* -- detail panel ------------------------------------ */
+.detail{border-left:1px solid var(--rule); background:var(--surface-2); padding:16px 18px 22px; display:flex; flex-direction:column; gap:18px}
+@media (max-width:1180px){ .detail{border-left:none; border-top:1px solid var(--rule)} }
+.swap{display:flex; flex-direction:column; gap:9px}
+.swapline{display:flex; align-items:center; gap:10px; font-family:var(--disp); font-size:17px; font-weight:600}
+.swapline .arrow{color:var(--ink-3); font-weight:500}
+.swapline .o{color:var(--gap)}
+.swapline .i{color:var(--live)}
+.swapmeta{display:flex; flex-wrap:wrap; gap:4px 16px; font-family:var(--mono); font-size:11.5px; color:var(--ink-2)}
+.swapmeta b{color:var(--ink); font-weight:500}
+
+.block{display:flex; flex-direction:column; gap:8px}
+.block > .eyebrow{display:flex; align-items:center; gap:7px}
+.pill{
+  font-family:var(--disp); font-size:8px; font-weight:700; letter-spacing:.09em;
+  padding:1.5px 5px; border-radius:2px; text-transform:uppercase;
+}
+.pill.o{background:var(--live-soft); color:var(--live)}
+.pill.m{background:var(--model-soft); color:var(--model)}
+.pill.g{background:var(--gap-soft); color:var(--gap)}
+
+.ladder{display:flex; flex-direction:column; gap:5px}
+.lrow{display:grid; grid-template-columns:74px 1fr 52px; align-items:center; gap:9px; font-size:11.5px}
+.lrow .lk{font-family:var(--mono); color:var(--ink-2); font-size:11px}
+.bar{height:9px; border-radius:1px; background:var(--rule); position:relative; overflow:hidden}
+.bar i{position:absolute; inset:0 auto 0 0; display:block; border-radius:1px}
+.bar i.a{background:var(--gap)}
+.bar i.b{background:var(--live)}
+.lrow .lv{font-family:var(--mono); font-size:11.5px; text-align:right; font-variant-numeric:tabular-nums}
+
+.fxbig{display:flex; flex-direction:column; gap:6px}
+.fxline{display:flex; align-items:baseline; gap:8px; font-family:var(--mono); font-size:12.5px}
+.fxline b{font-weight:600}
+.fxline i{color:var(--ink-3); font-style:normal}
+.fxline span{margin-left:auto; font-size:10.5px; color:var(--ink-3)}
+.fxkey{display:flex; justify-content:space-between; font-family:var(--mono); font-size:10px; color:var(--ink-3)}
+
+.chart{
+  border:1px solid var(--rule-2); border-radius:3px; padding:10px 10px 6px;
+  background:
+    repeating-linear-gradient(135deg, transparent 0 5px, var(--hatch) 5px 6px),
+    var(--surface);
+}
+.chart svg{display:block; width:100%; height:auto}
+.chartkey{display:flex; gap:14px; font-size:10.5px; color:var(--ink-2); padding-top:5px; font-family:var(--mono)}
+.chartkey i{display:inline-block; width:9px; height:9px; border-radius:1px; margin-right:5px; vertical-align:-1px}
+
+.verdict{
+  border:1px solid var(--rule-2); border-left:3px solid var(--model); border-radius:3px;
+  padding:11px 13px; background:
+    repeating-linear-gradient(135deg, transparent 0 5px, var(--hatch) 5px 6px),
+    var(--surface);
+  display:flex; flex-direction:column; gap:6px;
+}
+.verdict.swap{border-left-color:var(--live)}
+.verdict .vh{display:flex; align-items:center; gap:9px}
+.verdict .vh b{font-family:var(--disp); font-size:14px; letter-spacing:.02em}
+.verdict p{margin:0; font-size:12.5px; color:var(--ink-2); line-height:1.5}
+.verdict p b{color:var(--ink); font-weight:600}
+
+.ledger{display:flex; flex-direction:column; gap:0; font-size:11.5px}
+.ledger .lr{display:grid; grid-template-columns:1fr auto; gap:10px; padding:6px 0; border-bottom:1px solid var(--rule)}
+.ledger .lr:last-child{border-bottom:none}
+.ledger .lr .a{color:var(--ink-2)}
+.ledger .lr .b{font-family:var(--mono); font-size:10.5px; text-align:right; color:var(--ink-3); white-space:nowrap}
+.ledger .lr .a b{color:var(--ink); font-weight:500}
+
+.eo-alert{
+  border:1px solid var(--gap); border-radius:3px; padding:10px 12px;
+  background:var(--gap-soft); display:flex; flex-direction:column; gap:5px;
+}
+.eo-alert b{font-family:var(--disp); font-size:12px; color:var(--gap); letter-spacing:.02em}
+.eo-alert p{margin:0; font-size:11.5px; color:var(--ink-2); line-height:1.5}
+
+/* -- notes below the frame --------------------------- */
+.notes{display:flex; flex-direction:column; gap:20px; padding-top:8px}
+.notes h2{font-size:19px; font-weight:600}
+.notes h3{font-size:14px; font-weight:600; letter-spacing:0}
+.notes p{margin:0; font-size:13.5px; color:var(--ink-2); max-width:68ch; line-height:1.62}
+.notes p b{color:var(--ink); font-weight:600}
+.hr{height:1px; background:var(--rule-2); border:none; margin:0}
+.provtable{background:var(--surface); border:1px solid var(--rule-2); border-radius:3px; overflow-x:auto}
+.provtable table{font-size:12.5px}
+.provtable thead th{white-space:normal}
+.provtable thead th{padding:9px 12px; background:var(--surface-2)}
+.provtable td{padding:8px 12px; vertical-align:top; border-bottom:1px solid var(--rule); text-align:left}
+.provtable td.mono{font-family:var(--mono); font-size:11px; color:var(--ink-2); white-space:nowrap}
+.provtable tr:last-child td{border-bottom:none}
+.provtable tr.hi td{background:var(--surface-2)}
+.provtable tr.hi td:first-child{box-shadow:inset 2px 0 0 var(--live)}
+.chip{
+  display:inline-block; font-family:var(--disp); font-size:8.5px; font-weight:700;
+  letter-spacing:.09em; text-transform:uppercase; padding:2px 6px; border-radius:2px;
+}
+.chip.o{background:var(--live-soft); color:var(--live)}
+.chip.m{background:var(--model-soft); color:var(--model)}
+.chip.g{background:var(--gap-soft); color:var(--gap)}
+.cols{display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:18px}
+.card{background:var(--surface); border:1px solid var(--rule-2); border-radius:3px; padding:14px 16px; display:flex; flex-direction:column; gap:7px}
+.card.hi{border-left:3px solid var(--live)}
+.card h3{margin-bottom:1px}
+.card p{font-size:12.5px}
+.card ul{margin:0; padding-left:17px; font-size:12.5px; color:var(--ink-2); line-height:1.6}
+.card li{margin-bottom:3px}
+.card code{font-family:var(--mono); font-size:11px; background:var(--ground); padding:1px 4px; border-radius:2px; color:var(--ink)}
+.foot{font-size:11.5px; color:var(--ink-3); font-family:var(--mono); line-height:1.7}
+
+@media (prefers-reduced-motion: reduce){ *{transition:none !important; animation:none !important} }
+</style>
+
+
+<div class="wrap">
+
+  <div class="banner">
+    <strong>MOCKUP &#x2014; not system output</strong>
+    <span>Screen concept for the Phase&nbsp;8 Squad Planner, redrawn against the store as of <span class="num">29&nbsp;Aug&nbsp;15:45 local</span>. Every number is either read from <code style="font-family:var(--mono);font-size:12px">data/store/</code> or fabricated, and the two are marked apart everywhere they appear. <b>Phase&nbsp;2 closed on 29&nbsp;Aug</b>, so the hatching has moved since the 24&nbsp;Aug draw &#x2014; see what changed, below.</span>
+  </div>
+
+  <!-- ---------- THE SCREEN ---------- -->
+  <div class="app">
+
+    <div class="topbar">
+      <div class="brand"><b>FPL-AI</b><span class="slash">/</span><em>Squad Planner</em></div>
+      <div class="stat"><span class="k">Gameweek</span><span class="v">3 <small>&#xB7; next</small></span></div>
+      <div class="stat"><span class="k">Deadline</span><span class="v">Sat 5 Sep 01:30 <small>(4 Sep 17:30 UTC)</small></span></div>
+      <div class="stat"><span class="k">Squad value</span><span class="v">&#xA3;99.6m</span></div>
+      <div class="stat"><span class="k">Bank</span><span class="v">&#xA3;0.5m</span></div>
+      <div class="stat"><span class="k">Free transfers</span><span class="v">1 <small>/ max 5</small></span></div>
+      <div class="stat"><span class="k">Chips</span><span class="v">WC &#xB7; BB &#xB7; TC &#xB7; FH</span></div>
+    </div>
+
+    <div class="season" id="season"></div>
+
+    <div class="freshness">
+      <div class="f"><span class="dot ok"></span><b>Ownership &amp; prices</b> &#x2014; 288 snapshots, last 29 Aug 15:45 local</div>
+      <div class="f"><span class="dot ok"></span><b>Effective ownership</b> &#x2014; GW1 sampled 25 Aug &#xB7; <span class="num">9,284 entries</span> &#xB7; 139,260 picks</div>
+      <div class="f"><span class="dot ok"></span><b>GW3 match odds</b> &#x2014; 10 fixtures, 13&#x2013;15 books, captured 27 Aug 21:39 local</div>
+      <div class="f"><span class="dot stale"></span><b>Anytime-goal odds</b> &#x2014; GW2 fixtures only, 2 books &#xB7; <span class="num">GW3 market not captured</span></div>
+      <div class="f"><span class="dot none"></span><b>Fixture table</b> &#x2014; <code style="font-family:var(--mono);font-size:11px">pl_match_fixtures</code> holds matchweek 1 only</div>
+      <div class="f"><span class="dot stale"></span><b>GW2 in flight</b> &#x2014; 1 of 11 XI played; nothing here is actionable until it settles</div>
+    </div>
+
+    <div class="grid">
+
+      <!-- -- squad rail -- -->
+      <div class="rail">
+        <div class="head"><span class="eyebrow">Current squad</span><span class="eyebrow" id="railNote">15 players</span></div>
+        <div class="railkey"><span>&#xA3;</span><span>EO</span></div>
+        <div class="posgroup" id="railBody"></div>
+      </div>
+
+      <!-- -- candidate matrix -- -->
+      <div class="matrix">
+        <div class="mhead">
+          <h2>The Tzolis slot</h2>
+          <p>Midfielders affordable within <span class="num">&#xA3;7.0m</span> (sale price &#xA3;6.5m + &#xA3;0.5m bank), sorted by projected points. Tzolis is on the watchlist rather than the block &#x2014; <span class="num">26.1%</span> owned, second-best goal probability in the squad on the GW2 market, and <span class="num">94.3%</span> of the way to a price rise, against a rotation risk the GW2 intel flagged and no served model can price. Select a row to preview the swap.</p>
+        </div>
+        <div class="tablewrap">
+          <table>
+            <thead>
+              <tr>
+                <th class="l">Player<span class="prov o">Observed</span></th>
+                <th>&#xA3;<span class="prov o">Observed</span></th>
+                <th>Own %<span class="prov o">Observed</span></th>
+                <th>10-day<span class="prov o">Observed</span></th>
+                <th>EO &#xB7; C<span class="prov o">Observed</span></th>
+                <th>GW1 pts<span class="prov o">Observed</span></th>
+                <th>xGI &#xB7; DC<span class="prov o">Observed</span></th>
+                <th>GW3<span class="prov o">Observed</span></th>
+                <th>P(start)<span class="prov m">Model built</span></th>
+                <th>P(G)/P(A)<span class="prov m">Model built</span></th>
+                <th>xPts<span class="prov g">Not built</span></th>
+                <th>P(10+)<span class="prov g">Not built</span></th>
+              </tr>
+            </thead>
+            <tbody id="matrixBody"></tbody>
+          </table>
+        </div>
+        <div class="legend">
+          <div class="li"><span class="swatch o"></span><b>Observed</b> &#x2014; in the bitemporal store, stamped <span class="num">observed_at</span></div>
+          <div class="li"><span class="swatch m"></span><b>Model built, not served</b> &#x2014; all six Phase&nbsp;2 models pass the E5 gate; the per-player GW3 values shown are invented</div>
+          <div class="li"><span class="swatch g"></span><b>Not built</b> &#x2014; invented outright; needs the correlated Monte Carlo and the solver, Phases 3&#x2013;5</div>
+        </div>
+
+        <div class="strips">
+          <div class="strip">
+            <span class="eyebrow">GW3 fixtures, de-vigged 1X2 <span class="pill o">Observed</span></span>
+            <div class="fxlist" id="fixtures"></div>
+            <p class="stripnote">Home &#xB7; draw &#xB7; away, median inverse price across 13&#x2013;15 books, normalised. Captured 27 Aug 21:39 local from <code>odds_match_odds</code> &#x2014; the odds feed knows the GW3 fixture list that the fixture table does not.</p>
+          </div>
+          <div class="strip">
+            <span class="eyebrow">GW1 effective ownership, top 10 <span class="pill o">Observed</span></span>
+            <div class="eolist" id="eoBody"></div>
+            <p class="stripnote">Solid bar is EO &#x2014; <code>sum(multiplier) / entries</code>; the tick behind it is plain ownership. Right column is captaincy share. From 9,284 sampled entries. <b>This is the dataset that cannot be backfilled.</b></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- -- detail -- -->
+      <div class="detail" id="detail"></div>
+
+    </div>
+  </div>
+
+  <!-- ---------- NOTES ---------- -->
+  <div class="notes">
+    <hr class="hr">
+
+    <div>
+      <span class="eyebrow">Reading the mockup</span>
+      <h2 style="margin-top:6px">What is real, and what is a placeholder</h2>
+    </div>
+    <p>The screen above is deliberately built so the hatching maps onto the project's actual state. <b>Solid cells are query results</b> &#x2014; names, prices, ownership, the ownership trajectories, effective ownership and captaincy share, GW1 minutes, points, xG, xA and defensive contributions, the GW3 match market, and the scoring constants used to shape the distribution all come out of <code style="font-family:var(--mono);font-size:12px">data/store/</code>. <b>Hatched cells are invented</b>, and the hatch colour says why: violet where a model exists but nothing serves it into a planner, orange where the model itself does not exist yet.</p>
+
+    <div class="provtable">
+      <table>
+        <thead>
+          <tr><th class="l">Column</th><th class="l">Status</th><th class="l">Source, or what would make it real</th><th class="l">Dataset / epic</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Name &#xB7; team &#xB7; price &#xB7; ownership</td><td><span class="chip o">Observed</span></td><td>Bootstrap snapshot every 30 min since 19 Aug; 288 observations</td><td class="mono">elements</td></tr>
+          <tr><td>10-day ownership trajectory</td><td><span class="chip o">Observed</span></td><td>Same series, plotted from first to latest <code>observed_at</code></td><td class="mono">elements</td></tr>
+          <tr class="hi"><td>Effective ownership, captaincy share</td><td><span class="chip o">Observed</span></td><td><b>Changed since 24 Aug.</b> First sample taken 25 Aug: 9,284 entries, 139,260 picks, 6,719 automatic substitutions. EO is <code>sum(multiplier)/entries</code>, computed not modelled. Still one gameweek only &#x2014; a level, not yet a trajectory</td><td class="mono">picks &#xB7; E8</td></tr>
+          <tr><td>GW1 minutes &#xB7; points &#xB7; xG &#xB7; xA &#xB7; DC</td><td><span class="chip o">Observed</span></td><td>Settled GW1 element rows, read as of the GW2 deadline so GW2 cannot leak in</td><td class="mono">elements</td></tr>
+          <tr class="hi"><td>GW3 fixtures and 1X2 probabilities</td><td><span class="chip o">Observed</span></td><td><b>Changed since 24 Aug.</b> 10 fixtures at 13&#x2013;15 books, de-vigged by averaging inverse prices. Arrived through the odds feed, not the fixture ingest</td><td class="mono">odds_match_odds</td></tr>
+          <tr><td>Anytime-goal probability</td><td><span class="chip g">Not captured</span></td><td>The 27 Aug capture covers <b>GW2</b> fixtures at 2 books, which says nothing about GW3 opponents. A GW3 capture is one scheduled run away &#x2014; and the market omits FPL-relevant players outright (Rogers had no price at either UK book on 27 Aug)</td><td class="mono">odds_player_goal_odds</td></tr>
+          <tr><td>Scoring constants (MID goal 5, assist 3, DC 2, CS 1)</td><td><span class="chip o">Observed</span></td><td>Read live from game config, never hardcoded</td><td class="mono">game_config</td></tr>
+          <tr class="hi"><td>P(start), expected minutes</td><td><span class="chip m">Model built</span></td><td>114 folds, 86,755 OOS rows. Log-loss 0.3440, Brier 0.1069, ECE 0.0131, calibration slope 0.972 after nested out-of-sample isotonic recalibration. <b>Verdict PASS.</b> Not wired to any planner, and there is no GW3 feature row to score</td><td class="mono">E5 &#xB7; Phase 2</td></tr>
+          <tr class="hi"><td>P(goal), P(assist)</td><td><span class="chip m">Model built</span></td><td><b>New since 24 Aug.</b> 143 folds, 43,505 OOS rows. Goals log-loss 0.2347, slope 0.969 &#x2014; PASS. Assists 0.2370, slope 0.847 &#x2014; PASS with accepted departure. Binomial thinning of team goals, so the output <i>is</i> the share</td><td class="mono">E5 &#xB7; Phase 2</td></tr>
+          <tr><td>Defensive-contribution points</td><td><span class="chip m">Model built</span></td><td>Both groups gated. Thresholds now <b>pinned by observation</b> (DEF 10, MID/FWD 12) and resolved as-of, <code>verified=True</code> &#x2014; the press-only dependency is closed</td><td class="mono">E5 &#xB7; Phase 2</td></tr>
+          <tr class="hi"><td>Bonus points</td><td><span class="chip m">Model built</span></td><td><b>New since 24 Aug.</b> 223 folds, 160,992 OOS rows, log-loss 0.1881. PMF derived from a Monte Carlo over the whole fixture, because bonus is a rank-within-fixture phenomenon. Underconfident on 3 of 4 classes (slopes 1.089&#x2013;2.219) &#x2014; accepted, that is the safe direction</td><td class="mono">E5 &#xB7; Phase 2</td></tr>
+          <tr class="hi"><td>Cards and discipline</td><td><span class="chip m">Model built</span></td><td><b>New since 24 Aug.</b> 219 folds, 64,531 OOS rows. <code>RED</code> is <b>base-rate only</b> (slope &#x2212;0.064, CI spanning zero) and is excluded from anything downstream. <code>NONE</code>/<code>YELLOW</code> are <b>overconfident</b> (slopes 0.592/0.630) and carry a blocking condition on Phase 3: isotonic layer required before the optimiser consumes them</td><td class="mono">E5 &#xB7; Phase 2</td></tr>
+          <tr><td>Team strength</td><td><span class="chip m">Model built</span></td><td>Dixon-Coles on xG, 2,280 matches over 6 seasons, walk-forward gate built for this report. <code>DRAW</code> declared base-rate only (slope 0.147) &#x2014; draws measured as unpredictable rather than assumed so</td><td class="mono">E5 &#xB7; Phase 2</td></tr>
+          <tr><td>xPts distribution, P(10+)</td><td><span class="chip g">Not built</span></td><td>Every input now exists. What is missing is the <b>correlated Monte Carlo</b> that joins six independently-gated models into one player-gameweek PMF, and the feature row to run it on</td><td class="mono">E5, E8 &#xB7; Phases 2, 5</td></tr>
+          <tr><td>Rank-EV, top-10% probability</td><td><span class="chip g">Not built</span></td><td>The rank-aware objective. The EO level now exists for one gameweek; the objective needs a series, and the code does not exist either way</td><td class="mono">E8 &#xB7; Phase 5</td></tr>
+          <tr><td>Solver verdict, 5-GW horizon</td><td><span class="chip g">Not built</span></td><td>Single-period MILP, then rolling horizon with transfers and hits. <b>The next phase.</b> Its gate is the one that matters: beat ~2,100 over 2+ backtested seasons, ideally the 2,146 career average</td><td class="mono">E6, E7 &#xB7; Phases 3, 4</td></tr>
+          <tr><td>GW4&#x2013;GW7 fixture strip</td><td><span class="chip g">Not ingested</span></td><td>Fixture backfill still covers matchweek 1. <code>pl_match_fixtures.matchweek</code> also diverges from FPL's <code>round</code> on 4.4% of matches, which gates the 832,890 already-ingested team-match rows behind it</td><td class="mono">pl_match_fixtures</td></tr>
+          <tr><td>"Why 0 minutes?" explanations</td><td><span class="chip g">Not built</span></td><td>News extraction with source tiers and bounded log-odds updates. Referee assignment was <b>measured</b> at +0.0002 log-loss and the announcement-time capability cancelled on that evidence</td><td class="mono">E10 &#xB7; Phase 7</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="cols">
+      <div class="card hi">
+        <h3>What changed since the 24 August draw</h3>
+        <ul>
+          <li><b>The EO column went teal.</b> It was the one orange cell that could never be recovered later; the first sample landed 25 Aug and the numbers on this screen are computed from it, not modelled.</li>
+          <li><b>Phase 2 closed.</b> Six models, 16 scored outcomes: <span class="num">3 PASS</span>, <span class="num">11 PASS-with-accepted-departure</span>, <span class="num">2 BASE-RATE-ONLY</span>, <span class="num">0 FAIL</span>. Four of the violet columns here did not exist five days ago.</li>
+          <li><b>GW3 fixtures arrived sideways</b> &#x2014; through the odds feed rather than the fixture ingest, which is still stuck on matchweek 1.</li>
+          <li><b>The anytime-goal column went the other way.</b> It was solid on 24 Aug; for a GW3 decision there is no capture at all.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>The one placeholder that is still time-critical</h3>
+        <p>GW1 is banked. <b>GW2 is not</b> &#x2014; the sample is due Tuesday 1 Sep, evening local, once the gameweek settles, and it takes about 83 minutes.</p>
+        <p>It stays deliberately manual because heartbeat data shows the machine is reliably off across the morning and, since 26 Aug, across the small hours too. A scheduled run inside that window neither fires nor catches up. The same off-window now straddles the 01:30 local deadline, so the most valuable ownership snapshots of the week are being missed as well.</p>
+      </div>
+      <div class="card">
+        <h3>Why xPts is still orange with every input built</h3>
+        <p>All six models pass their gate independently. A player's gameweek score is not independent of them &#x2014; minutes gate everything, a goal and a clean sheet are negatively correlated through the same match, bonus is a rank <i>within</i> a fixture rather than a property of a player.</p>
+        <p>Convolving six marginals as if they were independent produces a distribution that is confidently wrong in the tail, which is exactly the region a rank-aware objective is bought for. The two curves in the detail panel are that naive convolution, drawn with the real scoring constants &#x2014; a shape to argue about, not a number to trust.</p>
+      </div>
+    </div>
+
+    <div class="cols">
+      <div class="card">
+        <h3>What the EO sample immediately showed</h3>
+        <ul>
+          <li><b>Haaland at 121.7 EO</b> from 70.3% ownership &#x2014; a 51-point premium bought entirely by the armband, at a <span class="num">50.6%</span> captaincy share. Not captaining him is a live, expensive, and now measurable decision.</li>
+          <li><b>Ownership and EO diverge in both directions.</b> Calvert-Lewin owned by 32.2% carried only 27.1 EO &#x2014; benched or auto-subbed by 18% of the managers who owned him. Isak went the other way, 17.0% owned to 20.2 EO.</li>
+          <li><b>Captaincy is a two-horse race and the second horse is cheap.</b> B.Fernandes took 17.6% of armbands; nobody else cleared 7%.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Where the season actually is</h3>
+        <p><b>GW1: 43 against a 50 average</b>, overall rank 6,382,778, 75th percentile. <b>GW2 in progress</b> and going well &#x2014; 26 points from the captain alone with ten XI players still to play, rank provisionally 4,461,715 and the 40th percentile.</p>
+        <p>The one transfer made, Gibbs-White to Rogers, was decided on <b>fixture rather than fitness</b> &#x2014; specifically so the call resolved before the user slept, instead of depending on a Friday presser landing after a 01:30 deadline. That shape is the requirement, not the anecdote.</p>
+      </div>
+      <div class="card">
+        <h3>The blocking condition on the next phase</h3>
+        <p>The cards model passes its gate and is still not safe to consume. <code>NONE</code> and <code>YELLOW</code> come back <b>overconfident</b> &#x2014; slopes 0.592 and 0.630, confidence intervals nowhere near 1.0 &#x2014; and an optimiser that inherits an over-claiming probability makes over-confident transfers with it.</p>
+        <p>The remedy is already proven in this codebase: the minutes model went from slope 1.114 and ECE 0.0507 to 0.972 and 0.0131 with a nested out-of-sample isotonic layer. <b>Phase 3 does not start on cards until that layer exists.</b></p>
+      </div>
+    </div>
+
+    <hr class="hr">
+    <p class="foot">
+      Mockup redrawn 29 Aug 2026, afternoon local &#xB7; store snapshot <span>2026-08-29T07:45:01Z</span><br>
+      Observed values queried from data/store/{elements, picks, odds_match_odds, teams, events, game_config} &#xB7; hatched values fabricated for illustration<br>
+      Squad value, bank, free transfers and chip inventory are read from the user's own FPL entry, not from the store &#x2014; the picks sample covers 9,284 other entries and never this one<br>
+      Track A output, not system output. Nothing on this screen was produced by the optimiser, because the optimiser does not exist yet.
+    </p>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+/* -- REAL DATA \u2014 queried from data/store/ on 2026-08-29 ----------------------
+   elements               @ 2026-08-29T07:45:01Z  (288th snapshot since 08-19)
+   picks                  @ 2026-08-25T13:12:19Z  (GW1 EO sample, 9,284 entries)
+   odds_match_odds        @ 2026-08-27T13:39:14Z  (GW3 fixtures, 13-15 books)
+   odds_player_goal_odds  @ 2026-08-27T13:39:20Z  (GW2 fixtures only, 2 books)
+   events                 @ 2026-08-28T22:45:01Z  (GW3 deadline, GW2 live average)
+   game_config            @ 2026-08-28T23:15:01Z  (scoring, squad rules)
+   --------------------------------------------------------------------------- */
+
+/* Track A, the live season. Entry 3434577. Read from the user's own account,
+   not from the store \u2014 the store samples 9,284 OTHER entries, never this one. */
+const SEASON = {
+  gw1: {pts:43, avg:50, or:6382778, pct:75},
+  gw2: {pts:26, avg:18, or:4461715, pct:40, played:1, xi:11}
+};
+
+/* GW2 squad after the one free transfer (Gibbs-White -> Rogers, 27 Aug).
+   2 GK / 5 DEF / 5 MID / 3 FWD, \u00A399.6m at current prices, \u00A30.5m banked.
+   `eo` and `cap` are REAL \u2014 computed from the GW1 picks sample. */
+const SQUAD = [
+  {n:"Lammens",     t:"MUN", pos:1, price:5.0,  own:15.5, eo:14.4,  cap:0.00},
+  {n:"Dubravka",    t:"TOT", pos:1, price:4.0,  own:18.5, eo:0.6,   cap:0.00, bench:1},
+  {n:"Gabriel",     t:"ARS", pos:2, price:8.0,  own:28.8, eo:30.8,  cap:1.02},
+  {n:"Shaw",        t:"MUN", pos:2, price:4.5,  own:19.4, eo:21.2,  cap:0.00},
+  {n:"Van Hecke",   t:"TOT", pos:2, price:5.0,  own:9.5,  eo:9.1,   cap:0.00, watch:true},
+  {n:"Diop",        t:"IPS", pos:2, price:4.0,  own:16.9, eo:9.7,   cap:0.00},
+  {n:"van Ewijk",   t:"COV", pos:2, price:4.0,  own:13.0, eo:4.3,   cap:0.00, bench:2},
+  {n:"B.Fernandes", t:"MUN", pos:3, price:12.0, own:47.4, eo:70.8,  cap:17.61, vice:true},
+  {n:"Rogers",      t:"CHE", pos:3, price:7.5,  own:26.1, eo:23.4,  cap:0.08, isNew:true},
+  {n:"Szoboszlai",  t:"LIV", pos:3, price:7.0,  own:43.4, eo:41.9,  cap:0.45},
+  {n:"Tzolis",      t:"ARS", pos:3, price:6.5,  own:26.1, eo:26.2,  cap:1.02, out:true},
+  {n:"Hughes",      t:"CRY", pos:3, price:4.5,  own:10.7, eo:0.5,   cap:0.00, bench:3},
+  {n:"Haaland",     t:"MCI", pos:4, price:15.5, own:68.3, eo:121.7, cap:50.61, capt:true},
+  {n:"Jo\u00E3o Pedro",  t:"CHE", pos:4, price:7.6,  own:68.4, eo:68.4,  cap:6.19},
+  {n:"Kusi-Asare",  t:"FUL", pos:4, price:4.5,  own:6.9,  eo:0.3,   cap:0.13, bench:4}
+];
+
+/* Ownership series: every 9th of 288 snapshots, 19 Aug -> 29 Aug. REAL. */
+const OWN_SERIES = {
+  "Tzolis":        [19.7,21.3,21.9,23.1,24.9,25.2,25.2,25.2,25.2,25.2,25.3,25.3,25.4,25.4,25.7,25.7,25.7,25.7,25.8,25.8,25.9,25.9,25.9,26.0,26.0,26.0,26.1,26.1,26.1,26.1],
+  "\u00D8degaard":      [6.6,7.1,7.2,7.6,8.0,8.2,8.3,8.3,8.4,8.6,8.8,9.0,9.4,9.7,10.4,10.4,10.5,10.6,10.6,10.9,11.2,11.2,11.3,11.4,11.4,11.5,11.6,11.7,11.8,11.8],
+  "Gakpo":         [3.6,3.6,3.6,3.5,3.5,3.5,3.5,3.5,3.5,3.6,3.6,3.6,3.7,4.0,4.7,4.8,4.9,5.0,5.0,5.4,5.7,5.8,5.9,6.0,6.0,6.1,6.3,6.5,6.6,6.6],
+  "Foden":         [4.4,4.4,4.3,4.3,4.3,4.4,4.4,4.4,4.4,4.4,4.4,4.4,4.4,4.4,4.3,4.3,4.3,4.3,4.2,4.2,4.2,4.1,4.1,4.1,4.1,4.1,4.1,4.0,4.1,4.1],
+  "M.Sangar\u00E9":     [2.9,3.1,3.1,3.3,3.4,3.3,3.3,3.3,3.3,3.2,3.4,3.8,4.2,4.6,5.7,5.9,6.0,6.2,6.3,7.0,7.5,7.7,7.8,8.0,8.1,8.3,8.6,9.0,9.2,9.3],
+  "Ndiaye":        [15.8,15.9,15.9,16.0,16.1,16.0,15.9,15.9,15.9,15.8,15.9,15.9,16.0,16.0,16.1,16.1,16.1,16.1,16.1,16.1,16.0,16.0,16.0,16.0,16.0,16.1,16.1,16.1,16.0,16.0],
+  "Stach":         [1.0,1.0,1.0,0.9,0.9,0.9,0.9,0.9,0.9,0.9,1.0,1.0,1.2,1.2,1.4,1.4,1.5,1.5,1.6,1.8,2.0,2.1,2.1,2.2,2.2,2.3,2.4,2.5,2.6,2.7],
+  "Dewsbury-Hall": [3.4,3.4,3.3,3.3,3.2,3.2,3.2,3.2,3.2,3.2,3.4,3.5,3.8,3.9,4.2,4.2,4.2,4.2,4.3,4.3,4.4,4.5,4.5,4.5,4.6,4.6,4.7,4.7,4.7,4.7],
+  "Tavernier":     [1.7,1.6,1.6,1.6,1.6,1.6,1.6,1.6,1.6,1.6,1.5,1.5,1.7,1.8,2.0,2.0,2.0,2.0,2.0,2.1,2.2,2.2,2.2,2.3,2.3,2.3,2.4,2.5,2.5,2.5],
+  "Elanga":        [0.7,0.7,0.7,0.7,0.7,0.7,0.7,0.7,0.8,0.8,0.8,0.8,0.9,1.1,1.4,1.4,1.5,1.5,1.5,1.7,1.8,1.8,1.9,1.9,1.9,2.0,2.1,2.1,2.2,2.2],
+  "Hinshelwood":   [0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.8,1.0,1.5,1.5,1.6,1.7,1.8,2.1,2.5,2.5,2.6,2.6,2.6,2.6,2.4,2.3,2.2,2.2]
+};
+
+/* GW3 fixtures with de-vigged 1X2, median inverse price across books. REAL \u2014
+   odds_match_odds captured 27 Aug 21:39 local. The FPL fixture table itself
+   still holds matchweek 1 only, so this is the odds feed standing in for an
+   ingest that has not happened. Kickoffs shown in local time (GMT+8). */
+const GW3_FIXTURES = [
+  {h:"IPS", a:"LIV", ko:"Sat 5 Sep 03:00", ph:18.5, pd:22.5, pa:59.0, books:15},
+  {h:"NEW", a:"BOU", ko:"Sat 5 Sep 19:30", ph:40.7, pd:26.4, pa:33.0, books:14},
+  {h:"BHA", a:"LEE", ko:"Sat 5 Sep 22:00", ph:52.9, pd:25.8, pa:21.3, books:14},
+  {h:"BRE", a:"SUN", ko:"Sat 5 Sep 22:00", ph:57.1, pd:24.4, pa:18.5, books:13},
+  {h:"FUL", a:"CRY", ko:"Sat 5 Sep 22:00", ph:40.4, pd:28.1, pa:31.5, books:14},
+  {h:"MCI", a:"COV", ko:"Sat 5 Sep 22:00", ph:78.3, pd:13.9, pa:7.8,  books:14},
+  {h:"NFO", a:"TOT", ko:"Sat 5 Sep 22:00", ph:34.4, pd:28.5, pa:37.1, books:14},
+  {h:"HUL", a:"AVL", ko:"Sun 6 Sep 00:30", ph:23.6, pd:25.7, pa:50.7, books:14},
+  {h:"EVE", a:"MUN", ko:"Sun 6 Sep 21:00", ph:31.9, pd:28.0, pa:40.2, books:14},
+  {h:"ARS", a:"CHE", ko:"Sun 6 Sep 23:30", ph:57.0, pd:24.1, pa:18.8, books:13}
+];
+
+/* Top of the GW1 effective-ownership table. REAL \u2014 9,284 sampled entries,
+   139,260 picks. `eo` is sum(multiplier)/entries; `cap` is captaincy share.
+   This is the dataset that cannot be backfilled. */
+const EO_TOP = [
+  {n:"Haaland",       own:70.3, eo:121.7, cap:50.61},
+  {n:"B.Fernandes",   own:52.8, eo:70.8,  cap:17.61},
+  {n:"Jo\u00E3o Pedro",    own:64.1, eo:68.4,  cap:6.19},
+  {n:"Szoboszlai",    own:42.8, eo:41.9,  cap:0.45},
+  {n:"Mbeumo",        own:39.0, eo:41.7,  cap:2.93},
+  {n:"Calafiori",     own:40.9, eo:40.9,  cap:0.27},
+  {n:"Raya",          own:38.2, eo:38.9,  cap:0.40},
+  {n:"Gabriel",       own:29.6, eo:30.8,  cap:1.02},
+  {n:"Calvert-Lewin", own:32.2, eo:27.1,  cap:0.66},
+  {n:"Isak",          own:17.0, eo:20.2,  cap:3.60}
+];
+
+/* --------------------------------------------------------------------------
+   CANDIDATES \u2014 midfielders inside \u00A37.0m (Tzolis sale \u00A36.5m + \u00A30.5m bank).
+
+   real:  everything up to and including `gw3`
+   fake:  everything under `f:` \u2014 pStart, eMin, pG, pA, pDC, xpts, p10, p90,
+          pHaul, rankEv, horizon, verdict, note
+   Keep that boundary exact.
+   -------------------------------------------------------------------------- */
+const CANDS = [
+  { n:"Tzolis", t:"ARS", price:6.5, own:26.1, ownD:6.4, outgoing:true,
+    eo:26.2, cap:1.02,
+    gw1:{pts:6, min:75, xg:0.19, xa:0.14, bps:30, dc:6}, pens:null,
+    tIn:16478, tOut:8715, pchg:94.3,
+    gw3:{opp:"CHE", ha:"H", win:57.0},
+    f:{pStart:0.78, eMin:66, pG:0.19, pA:0.13, pDC:0.24, xpts:4.1, p10:1, p90:10, pHaul:0.10,
+       rankEv:0, horizon:0} },
+
+  { n:"\u00D8degaard", t:"ARS", price:6.6, own:11.8, ownD:5.2,
+    eo:8.9, cap:0.56,
+    gw1:{pts:11, min:75, xg:0.21, xa:0.10, bps:41, dc:8}, pens:3,
+    tIn:8978, tOut:4501, pchg:5.9,
+    gw3:{opp:"CHE", ha:"H", win:57.0},
+    f:{pStart:0.86, eMin:74, pG:0.17, pA:0.22, pDC:0.29, xpts:4.7, p10:1, p90:12, pHaul:0.13,
+       rankEv:0.11, horizon:2.4,
+       verdict:"MARGINAL", note:"Same fixture as the player he replaces, +0.6 projected points, and 17.3pp less effective ownership \u2014 which in a rank-aware objective is an argument for the move, not against it. The catch is that the EO figure is a GW1 sample being read into a GW3 decision, and his ownership line has moved 6.6 to 11.8 since it was taken. One sample is not a trajectory."} },
+
+  { n:"Gakpo", t:"LIV", price:7.0, own:6.6, ownD:3.0,
+    eo:3.4, cap:0.04,
+    gw1:{pts:12, min:90, xg:0.30, xa:0.15, bps:33, dc:12}, pens:3,
+    tIn:9059, tOut:4466, pchg:82.0,
+    gw3:{opp:"IPS", ha:"A", win:59.0},
+    f:{pStart:0.71, eMin:62, pG:0.22, pA:0.16, pDC:0.33, xpts:4.4, p10:0, p90:12, pHaul:0.12,
+       rankEv:0.04, horizon:1.1,
+       verdict:"HOLD", note:"Best raw fixture in the band at 59% away, 12 defensive contributions from a full 90, third in the penalty order. He also spends the entire budget and sits at 82.0% on the price gauge, so the move is likely to cost more tomorrow. Rotation is the whole question and it is the question no served model can answer."} },
+
+  { n:"Foden", t:"MCI", price:7.0, own:4.1, ownD:-0.3,
+    eo:4.0, cap:0.08,
+    gw1:{pts:1, min:81, xg:0.12, xa:0.40, bps:15, dc:6}, pens:null,
+    tIn:9965, tOut:5662, pchg:-25.0,
+    gw3:{opp:"COV", ha:"H", win:78.3},
+    f:{pStart:0.64, eMin:55, pG:0.21, pA:0.20, pDC:0.21, xpts:4.2, p10:0, p90:13, pHaul:0.14,
+       rankEv:-0.03, horizon:0.4,
+       verdict:"HOLD", note:"City at home to a promoted side is the shortest price in the gameweek \u2014 78.3% across 14 books, the only GW3 fixture above 60%. 0.40 xA in 81 minutes says he was involved. The 0.64 start probability is the entire objection, and it is the one number on this row that a built model could answer and nothing serves."} },
+
+  { n:"Ndiaye", t:"EVE", price:6.0, own:16.0, ownD:0.2,
+    eo:14.7, cap:0.04,
+    gw1:{pts:9, min:90, xg:0.24, xa:0.32, bps:36, dc:12}, pens:1,
+    tIn:6822, tOut:12490, pchg:28.3,
+    gw3:{opp:"MUN", ha:"H", win:31.9},
+    f:{pStart:0.88, eMin:79, pG:0.16, pA:0.15, pDC:0.38, xpts:4.0, p10:0, p90:11, pHaul:0.10,
+       rankEv:-0.02, horizon:-0.6,
+       verdict:"HOLD", note:"First on penalties, a full 90, 12 defensive contributions, and \u00A31.0m cheaper. Everton at 31.9% at home to United is the worst fixture on this list, and 12,490 managers left him this gameweek against 6,822 in \u2014 the crowd is moving the other way, and the crowd can read the same fixture."} },
+
+  { n:"M.Sangar\u00E9", t:"BRE", price:5.6, own:9.4, ownD:6.5,
+    eo:1.9, cap:0.01,
+    gw1:{pts:14, min:75, xg:0.05, xa:0.33, bps:41, dc:13}, pens:null,
+    tIn:26838, tOut:3157, pchg:30.8,
+    gw3:{opp:"SUN", ha:"H", win:57.1},
+    f:{pStart:0.89, eMin:80, pG:0.04, pA:0.09, pDC:0.61, xpts:3.9, p10:1, p90:9, pHaul:0.06,
+       rankEv:0.02, horizon:0.9,
+       verdict:"HOLD", note:"13 defensive contributions and 14 points from a \u00A35.6m midfielder, in the second-shortest home price of the gameweek, freeing \u00A30.9m. The DC model is built and gated and its MID/FWD threshold of 12 is pinned by observation \u2014 this row is the clearest case on the screen of a model existing and nothing being able to put a question to it."} },
+
+  { n:"Stach", t:"LEE", price:6.0, own:2.7, ownD:1.7,
+    eo:0.6, cap:0.00,
+    gw1:{pts:13, min:90, xg:0.10, xa:0.05, bps:37, dc:16}, pens:null,
+    tIn:5941, tOut:1887, pchg:31.8,
+    gw3:{opp:"BHA", ha:"A", win:21.3},
+    f:{pStart:0.91, eMin:84, pG:0.05, pA:0.06, pDC:0.66, xpts:3.6, p10:1, p90:8, pHaul:0.04,
+       rankEv:-0.01, horizon:-0.3,
+       verdict:"HOLD", note:"16 defensive contributions is the highest figure in the sample and clears the pinned threshold of 12 by a distance. Very little of it converts without attacking return, and Leeds away at 21.3% is the second-worst fixture here. This is a floor, not a ceiling."} },
+
+  { n:"Dewsbury-Hall", t:"EVE", price:6.5, own:4.7, ownD:1.3,
+    eo:2.9, cap:0.01,
+    gw1:{pts:11, min:90, xg:0.12, xa:0.17, bps:40, dc:8}, pens:null,
+    tIn:5063, tOut:3251, pchg:50.1,
+    gw3:{opp:"MUN", ha:"H", win:31.9},
+    f:{pStart:0.83, eMin:74, pG:0.09, pA:0.14, pDC:0.31, xpts:3.5, p10:0, p90:10, pHaul:0.07,
+       rankEv:-0.04, horizon:-1.2,
+       verdict:"HOLD", note:"40 BPS from a full 90 is a bonus-model signal, and the bonus model is built \u2014 223 folds, log-loss 0.1881, its PMF derived per fixture rather than per player because bonus is a rank-within-fixture phenomenon. It is also the same Everton fixture as Ndiaye, \u00A30.5m dearer, without the penalties."} },
+
+  { n:"Tavernier", t:"BOU", price:6.0, own:2.6, ownD:0.9,
+    eo:0.9, cap:0.00,
+    gw1:{pts:10, min:90, xg:0.40, xa:0.08, bps:32, dc:8}, pens:3,
+    tIn:3635, tOut:1482, pchg:36.2,
+    gw3:{opp:"NEW", ha:"A", win:33.0},
+    f:{pStart:0.80, eMin:72, pG:0.13, pA:0.09, pDC:0.27, xpts:3.3, p10:0, p90:10, pHaul:0.07,
+       rankEv:-0.06, horizon:-1.8,
+       verdict:"HOLD", note:"0.40 xG is the highest open-play figure in the band and he is third on penalties. Away at Newcastle for 33.0% is what that costs. At 0.9% effective ownership the downside is completely unhedged, which is precisely the trade the rank-aware objective is meant to price and currently cannot."} },
+
+  { n:"Elanga", t:"NEW", price:6.0, own:2.2, ownD:1.5,
+    eo:0.6, cap:0.00,
+    gw1:{pts:9, min:75, xg:0.22, xa:0.01, bps:31, dc:2}, pens:null,
+    tIn:6443, tOut:1164, pchg:42.4,
+    gw3:{opp:"BOU", ha:"H", win:40.7},
+    f:{pStart:0.74, eMin:64, pG:0.14, pA:0.12, pDC:0.13, xpts:3.2, p10:0, p90:10, pHaul:0.07,
+       rankEv:-0.07, horizon:-2.1,
+       verdict:"HOLD", note:"2 defensive contributions is the lowest here, so nothing floors this pick: it is attacking return or nothing, from 75 minutes and a 40.7% home fixture. It also fails the interim P(start) \u2265 0.75 rule by 0.01, which is the kind of margin an interim rule should never be asked to arbitrate."} },
+
+  { n:"Hinshelwood", t:"BHA", price:6.0, own:2.2, ownD:1.8,
+    eo:0.3, cap:0.01, flag:"Unspecified injury \u00B7 25% chance of playing",
+    gw1:{pts:16, min:63, xg:1.41, xa:0.02, bps:54, dc:3}, pens:null,
+    tIn:1064, tOut:11634, pchg:43.8,
+    gw3:{opp:"LEE", ha:"H", win:52.9},
+    f:{pStart:0.31, eMin:24, pG:0.11, pA:0.05, pDC:0.14, xpts:1.5, p10:0, p90:8, pHaul:0.05,
+       rankEv:-0.22, horizon:-5.7,
+       verdict:"BLOCK", note:"The best single gameweek in the sample \u2014 16 points, 1.41 xG, 54 BPS from 63 minutes \u2014 and FPL now flags him at 25% to play. 11,634 managers out this week against 1,064 in. The flag is observed; the 0.31 start probability underneath it is not, and there is no news layer to say what the injury actually is."} }
+];
+</script>
+<script>
+"use strict";
+
+/* -- helpers -------------------------------------------------------------- */
+const POSNAME = {1:"Goalkeepers", 2:"Defenders", 3:"Midfielders", 4:"Forwards"};
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const f1 = n => n.toFixed(1);
+const commas = n => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+
+function sparkline(series, w, h){
+  const min = Math.min(...series), max = Math.max(...series);
+  const span = (max - min) || 1;
+  const pts = series.map((v,i) => [
+    (i/(series.length-1))*(w-2)+1,
+    h-1 - ((v-min)/span)*(h-2)
+  ]);
+  const d = pts.map((p,i) => (i?"L":"M") + p[0].toFixed(1) + " " + p[1].toFixed(1)).join(" ");
+  const rising = series[series.length-1] >= series[0];
+  const col = rising ? "var(--live)" : "var(--gap)";
+  const last = pts[pts.length-1];
+  return `<svg class="spark" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" aria-hidden="true">
+    <path d="${d}" fill="none" stroke="${col}" stroke-width="1.3" stroke-linejoin="round"/>
+    <circle cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="1.9" fill="${col}"/>
+  </svg>`;
+}
+
+/* Player-gameweek PMF for a MIDFIELDER. The shape is genuine \u2014 a convolution
+   over the real scoring constants read from game_config: goal 5, assist 3,
+   defensive contribution 2, clean sheet 1, appearance 1/2, bonus 0-3. Every
+   RATE fed into it is fabricated, because nothing serves a per-player GW3
+   feature row. The GW2 player-goal market was never captured for GW3
+   fixtures, so unlike the 24 Aug draw of this screen not even the goal rate
+   is observed here. */
+function poisson(lam, k){ let p = Math.exp(-lam); for(let i=1;i<=k;i++) p *= lam/i; return p; }
+
+function pmf(c){
+  const N = 21;
+  const out = new Array(N).fill(0);
+  const lam = -Math.log(1 - Math.min(c.f.pG, 0.92));   /* goals   */
+  const la  = -Math.log(1 - Math.min(c.f.pA, 0.92));   /* assists */
+  const pDC = c.f.pDC;
+  const pCS = 0.10 + c.gw3.win / 900;                  /* MID clean sheet = 1 pt */
+  const pStart = c.f.pStart, pApp = Math.min(pStart + 0.06, 0.99);
+  out[0] += 1 - pApp;
+  const branches = [[2, pStart*0.92], [1, pApp - pStart*0.92]];
+  for(const [mp, w] of branches){
+    for(let g=0; g<=4; g++){
+      const pg = poisson(lam, g);
+      for(let a=0; a<=3; a++){
+        const pa = poisson(la, a);
+        for(const [dc, pd] of [[2, pDC], [0, 1-pDC]]){
+          for(const [cs, pc] of [[1, pCS], [0, 1-pCS]]){
+            const ret = g + a;
+            const bd = ret >= 2 ? [[3,.45],[2,.25],[1,.15],[0,.15]]
+                     : ret === 1 ? [[3,.12],[2,.16],[1,.22],[0,.50]]
+                                 : [[1,.06],[0,.94]];
+            for(const [b, pb] of bd){
+              const pts = mp + 5*g + 3*a + dc + cs + b;
+              out[Math.min(pts, N-1)] += w * pg * pa * pd * pc * pb;
+            }
+          }
+        }
+      }
+    }
+  }
+  return out;
+}
+
+function pmfChart(a, b, labelA, labelB){
+  const A = pmf(a), B = pmf(b);
+  const N = 17, W = 300, H = 96, pad = 14;
+  const maxY = Math.max(...A.slice(0,N), ...B.slice(0,N));
+  const bw = (W - pad) / N;
+  let bars = "";
+  for(let i=0;i<N;i++){
+    const ha = (A[i]/maxY)*(H-pad-8), hb = (B[i]/maxY)*(H-pad-8);
+    const x = pad + i*bw;
+    bars += `<rect x="${(x+1).toFixed(1)}" y="${(H-pad-ha).toFixed(1)}" width="${(bw*0.44).toFixed(1)}" height="${ha.toFixed(1)}" fill="var(--gap)" opacity="0.75"/>`;
+    bars += `<rect x="${(x+1+bw*0.48).toFixed(1)}" y="${(H-pad-hb).toFixed(1)}" width="${(bw*0.44).toFixed(1)}" height="${hb.toFixed(1)}" fill="var(--live)" opacity="0.85"/>`;
+  }
+  let ticks = "";
+  for(const i of [0,4,8,12,16]){
+    ticks += `<text x="${(pad + i*bw + bw*0.5).toFixed(1)}" y="${H-3}" font-family="IBM Plex Mono, monospace" font-size="8" fill="var(--ink-3)" text-anchor="middle">${i===16?"16+":i}</text>`;
+  }
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Illustrative points distribution comparing ${esc(labelA)} and ${esc(labelB)}">
+    <line x1="${pad}" y1="${H-pad}" x2="${W}" y2="${H-pad}" stroke="var(--rule-2)" stroke-width="1"/>
+    ${bars}${ticks}
+  </svg>`;
+}
+
+/* -- render: season strip ------------------------------------------------- */
+function renderSeason(){
+  const g1 = SEASON.gw1, g2 = SEASON.gw2;
+  document.getElementById("season").innerHTML = `
+    <div class="sitem">
+      <span class="sk">GW1 settled</span>
+      <span class="sv"><b class="dn">${g1.pts}</b> vs ${g1.avg} avg</span>
+      <span class="sm">OR ${commas(g1.or)} &#183; ${g1.pct}th pct</span>
+    </div>
+    <span class="sarrow">&#8594;</span>
+    <div class="sitem live">
+      <span class="sk">GW2 in progress</span>
+      <span class="sv"><b class="up">${g2.pts}</b> vs ${g2.avg} avg</span>
+      <span class="sm">OR ${commas(g2.or)} &#183; ${g2.pct}th pct &#183; provisional</span>
+    </div>
+    <div class="sitem">
+      <span class="sk">Played</span>
+      <span class="sv">${g2.played} <small>of ${g2.xi} XI</small></span>
+      <span class="sm">all ${g2.pts} points are the captain</span>
+    </div>`;
+}
+
+/* -- render: GW3 fixture strip -------------------------------------------- */
+function renderFixtures(){
+  const rows = GW3_FIXTURES.map(f => {
+    const strong = Math.max(f.ph, f.pa);
+    const fav = f.ph >= f.pa ? f.h : f.a;
+    return `<div class="fx" title="${f.books} books, de-vigged">
+      <span class="fk">${f.h} <i>v</i> ${f.a}</span>
+      <span class="fbar">
+        <i class="h" style="width:${f.ph}%"></i><i class="d" style="width:${f.pd}%"></i><i class="a" style="width:${f.pa}%"></i>
+      </span>
+      <span class="fv ${strong >= 55 ? "hot" : ""}">${fav} ${strong.toFixed(0)}%</span>
+    </div>`;
+  }).join("");
+  document.getElementById("fixtures").innerHTML = rows;
+}
+
+/* -- render: EO leaderboard ----------------------------------------------- */
+function renderEo(){
+  const max = EO_TOP[0].eo;
+  document.getElementById("eoBody").innerHTML = EO_TOP.map(p => `
+    <div class="eor">
+      <span class="en">${esc(p.n)}</span>
+      <span class="ebar"><i style="width:${(p.eo/max*100).toFixed(1)}%"></i><u style="width:${(p.own/max*100).toFixed(1)}%"></u></span>
+      <span class="ev">${p.eo.toFixed(1)}</span>
+      <span class="ec">${p.cap.toFixed(1)}%</span>
+    </div>`).join("");
+}
+
+/* -- render: squad rail --------------------------------------------------- */
+function renderRail(sel){
+  const starters = SQUAD.filter(p => !p.bench);
+  const bench = SQUAD.filter(p => p.bench).sort((a,b) => a.bench - b.bench);
+  const row = p => {
+    const cls = ["pl"];
+    if (p.out) cls.push("out");
+    if (p.watch) cls.push("flag");
+    let badge = "";
+    if (p.capt) badge = `<span class="cb c">C</span>`;
+    else if (p.vice) badge = `<span class="cb v">V</span>`;
+    else if (p.isNew) badge = `<span class="cb n">NEW</span>`;
+    return `<div class="${cls.join(" ")}">
+      <span class="nm">${esc(p.n)}${badge}</span>
+      <span class="tm">${p.t}</span>
+      <span class="pr">${f1(p.price)}</span>
+      <span class="eoc" title="GW1 effective ownership, observed">${p.eo.toFixed(1)}</span>
+    </div>`;
+  };
+  let html = "";
+  for(const pos of [1,2,3,4]){
+    const group = starters.filter(p => p.pos === pos);
+    if(!group.length) continue;
+    html += `<div class="poslabel">${POSNAME[pos]}</div>` + group.map(row).join("");
+    if(pos === 3 && sel){
+      html += `<div class="pl inn">
+        <span class="nm">${esc(sel.n)}</span>
+        <span class="tm">${sel.t}</span>
+        <span class="pr">${f1(sel.price)}</span>
+        <span class="eoc">${sel.eo.toFixed(1)}</span>
+      </div>`;
+    }
+  }
+  html += `<div class="bench"><div class="poslabel">Bench</div>` + bench.map(row).join("") + `</div>`;
+  document.getElementById("railBody").innerHTML = html;
+  document.getElementById("railNote").textContent = sel ? "1 change staged" : "15 players";
+}
+
+/* -- render: matrix ------------------------------------------------------- */
+function renderMatrix(selName){
+  const body = document.getElementById("matrixBody");
+  body.innerHTML = CANDS.map(c => {
+    const isOut = !!c.outgoing;
+    const active = c.n === selName;
+    const cls = ["row"];
+    if (isOut) cls.push("outrow");
+    if (active) cls.push("active");
+    const series = OWN_SERIES[c.n] || [];
+    const dCls = c.ownD >= 0 ? "delta up" : "delta dn";
+    const dTxt = (c.ownD >= 0 ? "+" : "") + f1(c.ownD);
+    const tag = isOut ? `<span class="tag outg">Out</span>`
+              : active ? `<span class="tag sel">In</span>` : "";
+    const flag = c.flag ? `<span class="tag warnt" title="${esc(c.flag)}">Flag</span>` : "";
+    const fxCls = c.gw3.win >= 55 ? "hot" : c.gw3.win <= 25 ? "cold" : "";
+    return `<tr class="${cls.join(" ")}" data-name="${esc(c.n)}" tabindex="0" role="button"
+             aria-pressed="${active}" aria-label="Preview replacing Tzolis with ${esc(c.n)}">
+      <td><div class="who"><span class="n">${esc(c.n)}</span><span class="t">${c.t}</span>${tag}${flag}</div></td>
+      <td><div class="cell">${f1(c.price)}</div></td>
+      <td><div class="cell">${f1(c.own)}</div></td>
+      <td><div class="cell" style="display:flex;align-items:center;gap:7px;justify-content:flex-end">
+        ${sparkline(series, 34, 15)}<span class="${dCls}">${dTxt}</span></div></td>
+      <td><div class="cell"><b>${c.eo.toFixed(1)}</b>
+        <span style="color:var(--ink-3);font-size:10px"> ${c.cap.toFixed(1)}%</span></div></td>
+      <td><div class="cell"><b>${c.gw1.pts}</b>
+        <span style="color:var(--ink-3);font-size:10.5px"> ${c.gw1.min}&#8242;</span></div></td>
+      <td><div class="cell">${(c.gw1.xg + c.gw1.xa).toFixed(2)}
+        <span style="color:var(--ink-3);font-size:10.5px"> ${c.gw1.dc}</span></div></td>
+      <td><div class="cell ${fxCls}"><span style="color:var(--ink-3)">${c.gw3.ha === "H" ? "v" : "@"}</span>${c.gw3.opp} ${c.gw3.win.toFixed(0)}%</div></td>
+      <td><div class="cell fab m"><span class="v">${c.f.pStart.toFixed(2)}</span></div></td>
+      <td><div class="cell fab m"><span class="v">${(c.f.pG*100).toFixed(0)}/${(c.f.pA*100).toFixed(0)}</span></div></td>
+      <td><div class="cell fab g"><span class="v">${c.f.xpts.toFixed(1)}</span></div></td>
+      <td><div class="cell fab g"><span class="v">${(c.f.pHaul*100).toFixed(0)}%</span></div></td>
+    </tr>`;
+  }).join("");
+
+  body.querySelectorAll("tr.row").forEach(tr => {
+    const pick = () => {
+      const nm = tr.getAttribute("data-name");
+      if (nm === "Tzolis") return;
+      select(nm);
+    };
+    tr.addEventListener("click", pick);
+    tr.addEventListener("keydown", e => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(); }
+    });
+  });
+}
+
+/* -- render: detail ------------------------------------------------------- */
+function renderDetail(c){
+  const T = CANDS[0];
+  const freed = T.price - c.price;
+  const bankAfter = 0.5 + freed;
+  const maxEo = Math.max(T.eo, c.eo, 1);
+  const eoLadder = [
+    ["Tzolis", T.eo, T.cap, "a"],
+    [c.n,      c.eo, c.cap, "b"]
+  ].map(([nm, v, cap, k]) => `
+    <div class="lrow">
+      <span class="lk">${esc(nm.length > 11 ? nm.slice(0,10) + "\u2026" : nm)}</span>
+      <span class="bar"><i class="${k}" style="width:${(v/maxEo*100).toFixed(1)}%"></i></span>
+      <span class="lv">${v.toFixed(1)}</span>
+    </div>`).join("");
+
+  const fx = GW3_FIXTURES.find(f => f.h === c.t || f.a === c.t);
+  const home = fx.h === c.t;
+  const mine = home ? fx.ph : fx.pa;
+
+  const vClass = c.f.verdict === "BLOCK" ? "g" : c.f.verdict === "MARGINAL" ? "o" : "m";
+  const vTitle = c.f.verdict === "BLOCK" ? "Do not transfer"
+               : c.f.verdict === "MARGINAL" ? "Defensible, unproven" : "Keep Tzolis";
+
+  document.getElementById("detail").innerHTML = `
+    <div class="swap">
+      <span class="eyebrow">Staged transfer &#183; 1 of 1 free</span>
+      <div class="swapline"><span class="o">Tzolis</span><span class="arrow">&#8594;</span><span class="i">${esc(c.n)}</span></div>
+      <div class="swapmeta">
+        <span>Frees <b>&#163;${f1(freed)}m</b></span>
+        <span>Bank after <b>&#163;${f1(bankAfter)}m</b></span>
+        <span>Hit <b>0 pts</b></span>
+        <span>Team limit <b>${c.t === "ARS" ? "2 ARS, ok" : "ok"}</b></span>
+      </div>
+    </div>
+
+    <div class="block">
+      <span class="eyebrow">Effective ownership, GW1 <span class="pill o">Observed</span></span>
+      <div class="ladder">${eoLadder}</div>
+      <div class="ledger" style="margin-top:2px">
+        <div class="lr"><span class="a">Captaincy share</span><span class="b">${T.cap.toFixed(2)}% &#8594; ${c.cap.toFixed(2)}%</span></div>
+        <div class="lr"><span class="a">EO delta if swapped</span><span class="b" style="color:${c.eo < T.eo ? "var(--live)" : "var(--gap)"}">${(c.eo - T.eo >= 0 ? "+" : "")}${(c.eo - T.eo).toFixed(1)} pp</span></div>
+        <div class="lr"><span class="a">Sample</span><span class="b">9,284 entries &#183; 139,260 picks</span></div>
+        <div class="lr"><span class="a">Taken</span><span class="b" style="color:var(--warn)">GW1, 25 Aug &#183; one gameweek stale</span></div>
+      </div>
+    </div>
+
+    <div class="block">
+      <span class="eyebrow">GW3 fixture, de-vigged <span class="pill o">Observed</span></span>
+      <div class="fxbig">
+        <div class="fxline"><b>${fx.h}</b> <i>v</i> <b>${fx.a}</b><span>${fx.ko} local</span></div>
+        <span class="fbar big">
+          <i class="h" style="width:${fx.ph}%"></i><i class="d" style="width:${fx.pd}%"></i><i class="a" style="width:${fx.pa}%"></i>
+        </span>
+        <div class="fxkey"><span>${fx.h} ${fx.ph.toFixed(1)}%</span><span>Draw ${fx.pd.toFixed(1)}%</span><span>${fx.a} ${fx.pa.toFixed(1)}%</span></div>
+      </div>
+      <div class="ledger">
+        <div class="lr"><span class="a">${esc(c.n)}&#8217;s side</span><span class="b">${mine.toFixed(1)}% to win</span></div>
+        <div class="lr"><span class="a">Books &#183; captured</span><span class="b">${fx.books} &#183; 27 Aug 21:39 local</span></div>
+        <div class="lr"><span class="a">Anytime-goal market, GW3</span><span class="b" style="color:var(--gap)">not captured</span></div>
+      </div>
+    </div>
+
+    <div class="block">
+      <span class="eyebrow">Points distribution, GW3 <span class="pill g">Illustrative</span></span>
+      <div class="chart">
+        ${pmfChart(T, c, "Tzolis", c.n)}
+        <div class="chartkey">
+          <span><i style="background:var(--gap)"></i>Tzolis</span>
+          <span><i style="background:var(--live)"></i>${esc(c.n)}</span>
+        </div>
+      </div>
+      <div class="ledger">
+        <div class="lr"><span class="a">Mean <b>xPts</b></span><span class="b">${T.f.xpts.toFixed(1)} &#8594; ${c.f.xpts.toFixed(1)}</span></div>
+        <div class="lr"><span class="a">10th&#8211;90th percentile</span><span class="b">${T.f.p10}&#8211;${T.f.p90} &#8594; ${c.f.p10}&#8211;${c.f.p90}</span></div>
+        <div class="lr"><span class="a">P(10+ points)</span><span class="b">${(T.f.pHaul*100).toFixed(0)}% &#8594; ${(c.f.pHaul*100).toFixed(0)}%</span></div>
+        <div class="lr"><span class="a">P(start) &#183; E[minutes]</span><span class="b">${c.f.pStart.toFixed(2)} &#183; ${c.f.eMin}</span></div>
+        <div class="lr"><span class="a">P(goal) &#183; P(assist) &#183; P(DC)</span><span class="b">${(c.f.pG*100).toFixed(0)}% &#183; ${(c.f.pA*100).toFixed(0)}% &#183; ${(c.f.pDC*100).toFixed(0)}%</span></div>
+      </div>
+    </div>
+
+    <div class="eo-alert">
+      <b>GW2 effective ownership is not collected yet</b>
+      <p>The GW1 sample is banked &#8212; 9,284 entries, and the numbers above are real. The GW2 sample is due <b>Tue 1 Sep, evening local</b>, once the gameweek settles. Every gameweek missed is a permanent hole: FPL reissues entry IDs annually and captaincy has no archive.</p>
+    </div>
+
+    <div class="verdict ${vClass === "o" ? "swap" : ""}">
+      <div class="vh">
+        <span class="pill ${vClass}">${c.f.verdict}</span>
+        <b>${vTitle}</b>
+      </div>
+      <p>${esc(c.f.note)}</p>
+      <div class="ledger" style="margin-top:3px">
+        <div class="lr"><span class="a">Rank-EV, top-10% probability</span><span class="b">${(c.f.rankEv >= 0 ? "+" : "")}${c.f.rankEv.toFixed(2)} pp</span></div>
+        <div class="lr"><span class="a">5-gameweek horizon, net</span><span class="b">${(c.f.horizon >= 0 ? "+" : "")}${c.f.horizon.toFixed(1)} pts</span></div>
+        <div class="lr"><span class="a">GW4&#8211;GW7 fixtures</span><span class="b" style="color:var(--gap)">not ingested</span></div>
+      </div>
+    </div>
+
+    <div class="block">
+      <span class="eyebrow">Provenance</span>
+      <div class="ledger">
+        <div class="lr"><span class="a"><b>elements</b> &#8212; price, ownership, GW1 line</span><span class="b">2026-08-29T07:45:01Z</span></div>
+        <div class="lr"><span class="a"><b>picks</b> &#8212; effective ownership, captaincy</span><span class="b">2026-08-25T13:12:19Z</span></div>
+        <div class="lr"><span class="a"><b>odds_match_odds</b> &#8212; GW3 1X2</span><span class="b">2026-08-27T13:39:14Z</span></div>
+        <div class="lr"><span class="a"><b>game_config</b> &#8212; scoring, squad rules</span><span class="b">2026-08-28T23:15:01Z</span></div>
+        <div class="lr"><span class="a"><b>events</b> &#8212; GW3 deadline</span><span class="b">2026-08-28T22:45:01Z</span></div>
+        <div class="lr"><span class="a" style="color:var(--model)">P(start) &#183; P(goal) &#183; P(assist) &#183; P(DC)</span><span class="b" style="color:var(--model)">model built, not served</span></div>
+        <div class="lr"><span class="a" style="color:var(--gap)">xPts &#183; P(10+) &#183; rank-EV &#183; verdict</span><span class="b" style="color:var(--gap)">fabricated</span></div>
+      </div>
+    </div>
+  `;
+}
+
+/* -- wire ----------------------------------------------------------------- */
+function select(name){
+  const c = CANDS.find(x => x.n === name);
+  if (!c) return;
+  renderMatrix(name);
+  renderRail(c);
+  renderDetail(c);
+}
+renderSeason();
+renderFixtures();
+renderEo();
+select("\u00D8degaard");
+</script>

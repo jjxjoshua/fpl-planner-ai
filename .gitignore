@@ -1,0 +1,36 @@
+# Secrets — never commit
+.env
+!.env.example
+
+# Data — regenerable, and large. Never commit scraped or cached payloads.
+data/
+cache/
+*.parquet
+*.duckdb
+*.duckdb.wal
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.egg-info/
+
+# Node (Phase 8)
+node_modules/
+.next/
+dist/
+
+# Editors / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Keep the punch-card and docs tracked — they are the audit trail.
+
+# Agent stray output — scratchpad belongs outside the repo
+scratchpad/

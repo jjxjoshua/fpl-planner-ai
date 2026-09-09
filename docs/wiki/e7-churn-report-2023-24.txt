@@ -1,0 +1,19 @@
+=== 2023-24 ===
+  -- arm h1 --
+  FREE BUILD EXCLUDED (not counted as purchases): 15 elements (gw1:15)
+  M1 hold length (completed): count=31 mean=8.68 median=7 q1=3.00 q3=14.00 censored=12 initial_squad_sales=12
+     note: mean/median cover COMPLETED holds only -- censored (still-held) purchases are excluded, never dropped from the count and never treated as a hold of season_end - buy_round, so the true mean hold is an under-estimate whenever censored_count > 0
+  M2 churn fractions (denom=total purchases incl. censored, excl. free build): total_purchases=43 censored=12 initial_squad_sales=12 <1=0.00, <2=0.09, <3=0.16, <6=0.23
+  M4 round trips (sold, later bought back): count=7 gap_mean=7.71 gap_median=5
+  M3 per-gameweek (gameweek: n_transfers, hit_points):
+    gw1: 0xf,0hp | gw2: 1xf,0hp | gw3: 1xf,0hp | gw4: 1xf,0hp | gw5: 1xf,0hp | gw6: 1xf,0hp | gw7: 2xf,-4hp | gw8: 1xf,0hp | gw9: 1xf,0hp | gw10: 1xf,0hp | gw11: 1xf,0hp | gw12: 1xf,0hp | gw13: 1xf,0hp | gw14: 1xf,0hp | gw15: 1xf,0hp | gw16: 1xf,0hp | gw17: 1xf,0hp | gw18: 1xf,0hp | gw19: 1xf,0hp | gw20: 1xf,0hp | gw21: 1xf,0hp | gw22: 1xf,0hp | gw23: 1xf,0hp | gw24: 1xf,0hp | gw25: 3xf,-8hp | gw26: 1xf,0hp | gw27: 1xf,0hp | gw28: 3xf,-8hp | gw29: 1xf,0hp | gw30: 1xf,0hp | gw31: 1xf,0hp | gw32: 1xf,0hp | gw33: 1xf,0hp | gw34: 1xf,0hp | gw35: 2xf,-4hp | gw36: 1xf,0hp | gw37: 1xf,0hp | gw38: 1xf,0hp
+  -- arm h6 --
+  FREE BUILD EXCLUDED (not counted as purchases): 15 elements (gw1:15)
+  M1 hold length (completed): count=48 mean=7.04 median=6.00 q1=3.00 q3=9.00 censored=15 initial_squad_sales=15
+     note: mean/median cover COMPLETED holds only -- censored (still-held) purchases are excluded, never dropped from the count and never treated as a hold of season_end - buy_round, so the true mean hold is an under-estimate whenever censored_count > 0
+  M2 churn fractions (denom=total purchases incl. censored, excl. free build): total_purchases=63 censored=15 initial_squad_sales=15 <1=0.00, <2=0.02, <3=0.11, <6=0.35
+  M4 round trips (sold, later bought back): count=13 gap_mean=10.54 gap_median=9
+  M3 per-gameweek (gameweek: n_transfers, hit_points):
+    gw1: 0xf,0hp | gw2: 7xf,-24hp | gw3: 3xf,-8hp | gw4: 1xf,0hp | gw5: 1xf,0hp | gw6: 1xf,0hp | gw7: 1xf,0hp | gw8: 1xf,0hp | gw9: 2xf,-4hp | gw10: 1xf,0hp | gw11: 1xf,0hp | gw12: 1xf,0hp | gw13: 1xf,0hp | gw14: 2xf,-4hp | gw15: 1xf,0hp | gw16: 3xf,-8hp | gw17: 2xf,-4hp | gw18: 1xf,0hp | gw19: 2xf,-4hp | gw20: 1xf,0hp | gw21: 1xf,0hp | gw22: 1xf,0hp | gw23: 4xf,-12hp | gw24: 3xf,-8hp | gw25: 1xf,0hp | gw26: 2xf,-4hp | gw27: 0xf,0hp | gw28: 2xf,0hp | gw29: 1xf,0hp | gw30: 3xf,-8hp | gw31: 2xf,-4hp | gw32: 3xf,-8hp | gw33: 2xf,-4hp | gw34: 0xf,0hp | gw35: 2xf,0hp | gw36: 1xf,0hp | gw37: 1xf,0hp | gw38: 1xf,0hp
+
+NOTE: this is a DIAGNOSTIC, not a gate -- it measures the receding-horizon over-trading hypothesis, it does not decide anything and no objective/horizon/cost/model was changed to produce it.
