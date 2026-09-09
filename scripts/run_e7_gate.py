@@ -191,7 +191,14 @@ _e6_spec.loader.exec_module(run_e6_gate)
 from fplai.backtest.data import SeasonDataError, load_season  # noqa: E402
 from fplai.backtest.replay import GameweekResult, SeasonReplay, free_build_state  # noqa: E402
 from fplai.backtest.rules import rules_for_season, transfer_rules_for_season  # noqa: E402
-from fplai.optimiser import HorizonStrategy, ModelStackStrategy, OptimiserConfig, OptimiserError  # noqa: E402
+from fplai.optimiser import (  # noqa: E402
+    HorizonStrategy,
+    ModelStackStrategy,
+    OptimiserConfig,
+    OptimiserError,
+    _horizon_football_value,
+    optimise_multi_period,
+)
 from fplai.scoring import load_scoring_config  # noqa: E402
 from fplai.store import BitemporalStore  # noqa: E402
 
@@ -246,6 +253,47 @@ class _TransferCountingStrategy:
         if self._record_decisions:
             self.decisions.append(decision)
         return decision
+
+
+class _TransferValueObserver:
+    """S10b diagnostic observer attached to a `HorizonStrategy`.
+
+    The primary `MultiPeriodResult` has already been solved before this is
+    called. When that executed round pays a hit, run exactly ONE additional
+    solve against the SAME assembled horizon/state/config with only
+    `max_current_round_hits=0`. That is the best no-paid-hit alternative,
+    not a heuristic HOLD and not a changed objective.
+    """
+
+    def __init__(self, *, arm: str, rules, transfer_rules, config):
+        self.arm = arm
+        self.rules = rules
+        self.transfer_rules = transfer_rules
+        self.config = config
+        self.records: list[dict] = []
+
+    def __call__(self, view, horizon_candidates, incoming_state, chosen) -> None:
+        no_current_hit = None
+        if chosen.hits > 0:
+            no_current_hit = optimise_multi_period(
+                horizon_candidates,
+                self.rules,
+                self.transfer_rules,
+                incoming_state=incoming_state,
+                config=self.config,
+                max_current_round_hits=0,
+            )
+        self.records.append(
+            _build_transfer_value_record(
+                season=view.season,
+                arm=self.arm,
+                gameweek=view.gameweek,
+                chosen=chosen,
+                no_current_hit=no_current_hit,
+                transfer_rules=self.transfer_rules,
+                free_build=incoming_state is None,
+            )
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -333,6 +381,95 @@ def _build_decision_log_record(*, season: str, arm: str, gameweek: int, decision
     }
 
 
+def _build_transfer_value_record(
+    *,
+    season: str,
+    arm: str,
+    gameweek: int,
+    chosen,
+    no_current_hit,
+    transfer_rules,
+    free_build: bool,
+) -> dict:
+    """Pure S10b ex-ante record over already-solved result objects.
+
+    All user-facing values use `_horizon_football_value` (gross expected
+    points plus real negative hit points), never HiGHS `objective_value`,
+    whose deterministic tie-break/FT-settle nudges are diagnostics for the
+    solver rather than football value.
+    """
+
+    chosen_gross, chosen_hit_points, chosen_net = _horizon_football_value(chosen, transfer_rules)
+    current = chosen.plan[0]
+    current_hit_points = int(transfer_rules.hit_cost * current.hits)
+    current_net = float(current.expected_points + current_hit_points)
+    future_gross = float(chosen_gross - current.expected_points)
+    future_hit_points = int(chosen_hit_points - current_hit_points)
+
+    alternative = None
+    if no_current_hit is not None:
+        alt_gross, alt_hit_points, alt_net = _horizon_football_value(no_current_hit, transfer_rules)
+        alt_current = no_current_hit.plan[0]
+        alt_current_hit_points = int(transfer_rules.hit_cost * alt_current.hits)
+        alt_future_gross = float(alt_gross - alt_current.expected_points)
+        alternative = {
+            "transfers_in": list(no_current_hit.transfers_in),
+            "transfers_out": list(no_current_hit.transfers_out),
+            "current_hits": no_current_hit.hits,
+            "current_gross_expected_points": float(alt_current.expected_points),
+            "current_hit_points": alt_current_hit_points,
+            "horizon_gross_expected_points": alt_gross,
+            "horizon_hit_points": alt_hit_points,
+            "horizon_net_expected_points": alt_net,
+            "horizon_net_delta_chosen_minus_no_hit": chosen_net - alt_net,
+            "horizon_gross_delta_chosen_minus_no_hit": chosen_gross - alt_gross,
+            "current_gross_delta_chosen_minus_no_hit": float(current.expected_points - alt_current.expected_points),
+            "future_gross_delta_chosen_minus_no_hit": future_gross - alt_future_gross,
+            "hit_points_delta_chosen_minus_no_hit": chosen_hit_points - alt_hit_points,
+        }
+
+    return {
+        "season": season,
+        "arm": arm,
+        "gameweek": gameweek,
+        "free_build": free_build,
+        "horizon_rounds": [round_plan.round for round_plan in chosen.plan],
+        "transfers_in": list(chosen.transfers_in),
+        "transfers_out": list(chosen.transfers_out),
+        "current_free_transfers_available": current.free_transfers_available,
+        "current_hits": chosen.hits,
+        "current_gross_expected_points": float(current.expected_points),
+        "current_hit_points": current_hit_points,
+        "current_net_expected_points": current_net,
+        "future_gross_expected_points": future_gross,
+        "future_hit_points": future_hit_points,
+        "future_net_expected_points": future_gross + future_hit_points,
+        "horizon_gross_expected_points": chosen_gross,
+        "horizon_hit_points": chosen_hit_points,
+        "horizon_net_expected_points": chosen_net,
+        "no_current_hit_alternative": alternative,
+    }
+
+
+def _attach_realised_transfer_value_record(record: dict, result) -> dict:
+    """Attach the real replay score without mutating the ex-ante record.
+
+    The solver and replay compute the same executed-round hit cost through
+    different paths. Refuse the trace if they disagree; diagnostic evidence
+    that cannot reconcile to the gate total is worse than no evidence.
+    """
+    if record["current_hit_points"] != result.transfer_hit_points:
+        raise ValueError(
+            f"GW{record['gameweek']}: diagnostic hit points {record['current_hit_points']} "
+            f"do not match replay hit points {result.transfer_hit_points}"
+        )
+    return {
+        **record,
+        "realised_points": result.points,
+        "realised_hit_points": result.transfer_hit_points,
+    }
+
+
 def _read_records(out_path: Path) -> list[dict]:
     """Every well-formed JSON line in `out_path`, in file order. A
     malformed line is skipped, never fatal -- mirrors `run_e6_gate.
@@ -411,6 +548,7 @@ def run_season(
     shared_dc_cache: dict,
     git_commit: str,
     decision_log_path: Path | None = None,
+    value_log_path: Path | None = None,
 ) -> dict:
     """Fit ONE `ModelStackStrategy` (S10, D3), run it stateful under TWO
     `HorizonStrategy` wrappers (`horizon=6`, `horizon=1`), and return the
@@ -455,8 +593,20 @@ def run_season(
 
     arms: dict[str, dict] = {}
     for arm_name in ARM_NAMES:
+        value_observer = (
+            _TransferValueObserver(
+                arm=arm_name, rules=rules, transfer_rules=transfer_rules, config=config
+            )
+            if value_log_path is not None
+            else None
+        )
         horizon_strategy = HorizonStrategy(
-            model_stack, rules, transfer_rules, horizon=_HORIZON_BY_ARM[arm_name], config=config
+            model_stack,
+            rules,
+            transfer_rules,
+            horizon=_HORIZON_BY_ARM[arm_name],
+            config=config,
+            diagnostic_observer=value_observer,
         )
         counting = _TransferCountingStrategy(horizon_strategy, record_decisions=decision_log_path is not None)
         t0 = time.time()
@@ -483,6 +633,18 @@ def run_season(
                         season=season, arm=arm_name, gameweek=gameweek, decision=decision, result=result
                     )
                     f.write(json.dumps(record) + "\n")
+                    f.flush()
+
+        if value_log_path is not None:
+            if len(value_observer.records) != len(results):
+                raise ValueError(
+                    f"{season} {arm_name}: transfer-value observer recorded {len(value_observer.records)} "
+                    f"decision(s) for {len(results)} replay result(s)"
+                )
+            with value_log_path.open("a", encoding="utf-8") as f:
+                for record, result in zip(value_observer.records, results):
+                    realised_record = _attach_realised_transfer_value_record(record, result)
+                    f.write(json.dumps(realised_record) + "\n")
                     f.flush()
 
     return _build_season_record(
@@ -543,11 +705,24 @@ def main() -> int:
             "scripts/analyse_transfer_churn.py. Never point this at data/gate/ or docs/wiki/."
         ),
     )
+    parser.add_argument(
+        "--value-log",
+        type=str,
+        default=None,
+        help=(
+            "S10b diagnostic. Append one EX-ANTE transfer-value JSONL line per (season, arm, gameweek). "
+            "Paid-hit rounds run one extra solve capped at zero CURRENT-round hits against the same "
+            "assembled horizon/state/objective. Default None adds no observer and no extra solves."
+        ),
+    )
     args = parser.parse_args()
     out_path = Path(args.out)
     decision_log_path = Path(args.decision_log) if args.decision_log else None
+    value_log_path = Path(args.value_log) if args.value_log else None
     if decision_log_path is not None:
         decision_log_path.parent.mkdir(parents=True, exist_ok=True)
+    if value_log_path is not None:
+        value_log_path.parent.mkdir(parents=True, exist_ok=True)
 
     if args.report_only:
         print(_render_report_table(_read_records(out_path)))
@@ -589,6 +764,7 @@ def main() -> int:
                 shared_dc_cache=shared_dc_cache,
                 git_commit=commit,
                 decision_log_path=decision_log_path,
+                value_log_path=value_log_path,
             )
         except SeasonDataError as exc:
             print(f"{season}: SKIPPED -- {exc}")

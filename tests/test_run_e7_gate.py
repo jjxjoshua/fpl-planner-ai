@@ -316,6 +316,33 @@ class _FakeResult:
         self.points = points
 
 
+class _FakeRoundPlan:
+    def __init__(self, *, round, expected_points, hits, free_transfers_available, transfers_in=(), transfers_out=()):
+        self.round = round
+        self.expected_points = expected_points
+        self.hits = hits
+        self.free_transfers_available = free_transfers_available
+        self.transfers_in = transfers_in
+        self.transfers_out = transfers_out
+
+
+class _FakeMultiPeriodResult:
+    def __init__(self, *, plan, transfers_in=(), transfers_out=(), hits=0):
+        self.plan = tuple(plan)
+        self.transfers_in = transfers_in
+        self.transfers_out = transfers_out
+        self.hits = hits
+
+
+class _FakeTransferRules:
+    hit_cost = -4
+
+
+class _FakeView:
+    season = "2023-24"
+    gameweek = 5
+
+
 def test_build_decision_log_record_has_every_d1_field():
     decision = _FakeDecisionForLog(transfers_in=(10,), transfers_out=(20,), squad_ids=(1, 2, 3))
     result = _FakeResult(transfer_hit_points=-4, points=57)
@@ -347,6 +374,97 @@ def test_build_decision_log_record_hit_points_and_points_come_from_result_not_a_
     )
     assert record["hit_points"] == -999
     assert record["points"] == -12345
+
+
+def test_build_transfer_value_record_compares_football_value_not_raw_solver_objective():
+    chosen = _FakeMultiPeriodResult(
+        transfers_in=(10, 11), transfers_out=(20, 21), hits=1,
+        plan=(
+            _FakeRoundPlan(round=5, expected_points=70.0, hits=1, free_transfers_available=1, transfers_in=(10, 11), transfers_out=(20, 21)),
+            _FakeRoundPlan(round=6, expected_points=65.0, hits=0, free_transfers_available=1),
+        ),
+    )
+    no_hit = _FakeMultiPeriodResult(
+        transfers_in=(10,), transfers_out=(20,), hits=0,
+        plan=(
+            _FakeRoundPlan(round=5, expected_points=67.0, hits=0, free_transfers_available=1, transfers_in=(10,), transfers_out=(20,)),
+            _FakeRoundPlan(round=6, expected_points=63.0, hits=0, free_transfers_available=1),
+        ),
+    )
+
+    record = run_e7_gate._build_transfer_value_record(
+        season="2023-24", arm="h6", gameweek=5,
+        chosen=chosen, no_current_hit=no_hit, transfer_rules=_FakeTransferRules(), free_build=False,
+    )
+
+    assert record["horizon_gross_expected_points"] == 135.0
+    assert record["horizon_hit_points"] == -4
+    assert record["horizon_net_expected_points"] == 131.0
+    assert record["current_free_transfers_available"] == 1
+    assert record["current_hits"] == 1
+    alternative = record["no_current_hit_alternative"]
+    assert alternative["horizon_net_expected_points"] == 130.0
+    assert alternative["horizon_net_delta_chosen_minus_no_hit"] == 1.0
+    assert alternative["horizon_gross_delta_chosen_minus_no_hit"] == 5.0
+    assert alternative["current_gross_delta_chosen_minus_no_hit"] == 3.0
+    assert alternative["future_gross_delta_chosen_minus_no_hit"] == 2.0
+    assert alternative["hit_points_delta_chosen_minus_no_hit"] == -4
+
+
+def test_transfer_value_observer_runs_no_hit_resolve_only_when_primary_decision_pays_a_hit(monkeypatch):
+    chosen = _FakeMultiPeriodResult(
+        transfers_in=(10, 11), transfers_out=(20, 21), hits=1,
+        plan=(_FakeRoundPlan(round=5, expected_points=70.0, hits=1, free_transfers_available=1),),
+    )
+    no_hit = _FakeMultiPeriodResult(
+        transfers_in=(10,), transfers_out=(20,), hits=0,
+        plan=(_FakeRoundPlan(round=5, expected_points=66.0, hits=0, free_transfers_available=1),),
+    )
+    calls = []
+
+    def fake_optimise(horizon_candidates, rules, transfer_rules, incoming_state=None, config=None, **kwargs):
+        calls.append((horizon_candidates, incoming_state, kwargs))
+        return no_hit
+
+    monkeypatch.setattr(run_e7_gate, "optimise_multi_period", fake_optimise)
+    observer = run_e7_gate._TransferValueObserver(
+        arm="h6", rules=object(), transfer_rules=_FakeTransferRules(), config=object()
+    )
+    incoming = object()
+    horizon = {5: ("candidate",)}
+    observer(_FakeView(), horizon, incoming, chosen)
+
+    assert len(calls) == 1
+    assert calls[0][0] is horizon
+    assert calls[0][1] is incoming
+    assert calls[0][2]["max_current_round_hits"] == 0
+    assert observer.records[0]["no_current_hit_alternative"] is not None
+
+    no_hit_primary = _FakeMultiPeriodResult(
+        transfers_in=(10,), transfers_out=(20,), hits=0,
+        plan=(_FakeRoundPlan(round=6, expected_points=60.0, hits=0, free_transfers_available=1),),
+    )
+    class _GW6View:
+        season = "2023-24"
+        gameweek = 6
+    observer(_GW6View(), {6: ("candidate",)}, incoming, no_hit_primary)
+    assert len(calls) == 1  # no counterfactual solve for an already-hit-free optimum
+    assert observer.records[1]["no_current_hit_alternative"] is None
+
+
+def test_attach_realised_transfer_value_record_uses_replay_result_and_attacks_hit_mismatch():
+    record = {"gameweek": 5, "current_hit_points": -4}
+    result = _FakeResult(transfer_hit_points=-4, points=57)
+    attached = run_e7_gate._attach_realised_transfer_value_record(record, result)
+    assert attached["realised_points"] == 57
+    assert attached["realised_hit_points"] == -4
+    assert record == {"gameweek": 5, "current_hit_points": -4}  # pure; input not mutated
+
+    with pytest.raises(ValueError, match=r"diagnostic hit points.*replay"):
+        run_e7_gate._attach_realised_transfer_value_record(
+            {"gameweek": 5, "current_hit_points": -8},
+            _FakeResult(transfer_hit_points=-4, points=57),
+        )
 
 
 # ---------------------------------------------------------------------------
