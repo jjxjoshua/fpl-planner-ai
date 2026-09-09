@@ -1717,6 +1717,43 @@ def test_evaluate_what_if_is_deterministic_when_forced_transfer_order_changes():
     assert first == reversed_order
 
 
+def test_optimise_multi_period_max_current_round_hits_zero_finds_best_no_hit_alternative():
+    """S10b diagnostic seam: the ordinary optimum is allowed to pay one
+    hit when two upgrades justify it, while the comparison solve caps ONLY
+    the executed round's hits at zero and finds the best legal no-hit plan.
+    The objective itself is unchanged in both solves.
+    """
+    horizon = {20: _mp_round({9: 10.0, 19: 10.0})}
+    incoming = _mp_incoming_state(bank_tenths=100, free_transfers=1)
+    tr = TransferRules(free_transfers_per_gameweek=1, max_banked_transfers=2, hit_cost=-4)
+
+    unrestricted = optimise_multi_period(horizon, _RULES, tr, incoming_state=incoming)
+    no_hit = optimise_multi_period(
+        horizon,
+        _RULES,
+        tr,
+        incoming_state=incoming,
+        max_current_round_hits=0,
+    )
+
+    assert unrestricted.hits == 1
+    assert len(unrestricted.transfers_in) == 2
+    assert no_hit.hits == 0
+    assert len(no_hit.transfers_in) == 1
+    assert set(no_hit.transfers_in).issubset(set(unrestricted.transfers_in))
+
+
+def test_optimise_multi_period_rejects_current_round_hit_cap_on_a_free_build():
+    with pytest.raises(OptimiserError, match=r"current-round hit cap.*free build"):
+        optimise_multi_period(
+            {20: _default_pool()},
+            _RULES,
+            transfer_rules_for_season("2025-26"),
+            incoming_state=None,
+            max_current_round_hits=0,
+        )
+
+
 # ---------------------------------------------------------------------------
 # HorizonStrategy / TrailingProxyHorizonSource -- Phase 4, E7, story S9,
 # PHASE 1. Wires optimise_multi_period (S8) into a fplai.backtest.replay.
@@ -1883,6 +1920,39 @@ def test_horizon_strategy_stateful_squad_uses_optimise_multi_periods_own_transfe
     expected = optimise_multi_period({20: source._per_round[20]}, _RULES, tr, incoming_state=incoming)
     assert decision.transfers_in == expected.transfers_in
     assert decision.transfers_out == expected.transfers_out
+
+
+def test_horizon_strategy_diagnostic_observer_receives_exact_solve_without_changing_decision():
+    """S10b: the observer is a read-only diagnostic seam. It receives the
+    exact truncated candidate mapping, incoming ledger and MultiPeriodResult
+    that produced the executable Decision; it does not replace or re-solve
+    the primary decision.
+    """
+    incoming = _mp_incoming_state(bank_tenths=100, free_transfers=1)
+    per_round = {20: _mp_round({9: 10.0}), 21: _mp_round({9: 10.0}), 22: _mp_round({9: 100.0})}
+    seen = []
+
+    def observer(view, horizon_candidates, mp_incoming, result):
+        seen.append((view, horizon_candidates, mp_incoming, result))
+
+    strategy = HorizonStrategy(
+        _StubHorizonSource(per_round),
+        _RULES,
+        transfer_rules_for_season("2025-26"),
+        horizon=2,
+        diagnostic_observer=observer,
+    )
+    view = _empty_view(incoming_state=incoming)
+    decision = strategy.decide(view)
+
+    assert len(seen) == 1
+    observed_view, observed_horizon, observed_incoming, observed_result = seen[0]
+    assert observed_view is view
+    assert tuple(observed_horizon) == (20, 21)  # never the source's unused round 22
+    assert observed_incoming is incoming
+    assert decision.transfers_in == observed_result.transfers_in
+    assert decision.transfers_out == observed_result.transfers_out
+    assert decision.squad.ids() == set(observed_result.squad_element_ids)
 
 
 def test_trailing_proxy_horizon_source_repeats_round_t_candidates_for_every_forward_round():

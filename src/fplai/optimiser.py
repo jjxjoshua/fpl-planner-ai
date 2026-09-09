@@ -304,7 +304,8 @@ from __future__ import annotations
 from collections import Counter
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Mapping, Protocol, Sequence, runtime_checkable
+from types import MappingProxyType
+from typing import Callable, Mapping, Protocol, Sequence, runtime_checkable
 
 import highspy
 import polars as pl
@@ -1015,6 +1016,7 @@ def optimise_multi_period(
     config: OptimiserConfig = OptimiserConfig(),
     *,
     forced_transfers: Sequence[ForcedTransfer] = (),
+    max_current_round_hits: int | None = None,
 ) -> MultiPeriodResult:
     """Build and solve the receding-horizon MILP over every round key in
     `horizon_candidates` (D1) — squad/XI/captain per round, transfers/hits/
@@ -1036,6 +1038,15 @@ def optimise_multi_period(
     solved bench losing its structurally-implied GK slot (mirrors
     `optimise_squad`'s own checks, applied per round)."""
     canonical_forced_transfers = _canonical_forced_transfers(forced_transfers)
+    if max_current_round_hits is not None and max_current_round_hits < 0:
+        raise OptimiserError(
+            f"max_current_round_hits must be >= 0, got {max_current_round_hits}"
+        )
+    if max_current_round_hits is not None and incoming_state is None:
+        raise OptimiserError(
+            "current-round hit cap cannot be applied to a free build: "
+            "incoming_state=None has no round-t transfer/hit variables"
+        )
     if not horizon_candidates:
         raise OptimiserError("optimise_multi_period called with an empty horizon_candidates mapping")
 
@@ -1272,6 +1283,17 @@ def optimise_multi_period(
                 ft_settle_vars.append(ft_next)
 
         prev_squad = sv
+
+    # S10b diagnostic-only constraint seam. This does NOT change any
+    # objective coefficient or hit arithmetic: it only restricts the
+    # already-existing current-round hits variable so an audit can compare
+    # the chosen plan with the best plan that takes no paid hit. The normal
+    # production path leaves this as None and therefore adds no constraint.
+    if max_current_round_hits is not None:
+        h.addConstr(
+            hits_vars[t0] <= max_current_round_hits,
+            name=f"diagnostic_current_hits_cap_{t0}",
+        )
 
     # --- objective: E[points] over XI + captain, per round, plus each
     # round's tie-break (D8), plus the FT/hits penalty (D6, sign pinned:
@@ -2377,6 +2399,16 @@ class HorizonStrategy:
         transfer_rules: TransferRules,
         horizon: int,
         config: OptimiserConfig | None = None,
+        diagnostic_observer: Callable[
+            [
+                GameweekView,
+                Mapping[int, Sequence[OptimiserCandidate]],
+                SquadState | None,
+                MultiPeriodResult,
+            ],
+            None,
+        ]
+        | None = None,
     ):
         if horizon < 1:
             raise OptimiserError(f"HorizonStrategy: horizon must be >= 1, got {horizon}")
@@ -2386,6 +2418,7 @@ class HorizonStrategy:
         self._transfer_rules = transfer_rules
         self._horizon = horizon
         self._config = config if config is not None else OptimiserConfig()
+        self._diagnostic_observer = diagnostic_observer
 
     def decide(self, view: GameweekView) -> Decision:
         incoming = view.incoming_state
@@ -2433,6 +2466,18 @@ class HorizonStrategy:
             )
         except OptimiserError as exc:
             raise OptimiserError(f"{view.season} GW{view.gameweek}: {exc}") from exc
+
+        if self._diagnostic_observer is not None:
+            # Expose the exact primary solve AFTER it has completed but
+            # BEFORE it is narrowed to Decision. Freeze the mapping and each
+            # candidate sequence so diagnostic code cannot mutate the inputs
+            # later used to construct the executable decision. Any observer
+            # error is intentionally loud: a requested audit must not silently
+            # drop evidence and pretend it ran.
+            diagnostic_horizon = MappingProxyType(
+                {round_number: tuple(truncated[round_number]) for round_number in rounds}
+            )
+            self._diagnostic_observer(view, diagnostic_horizon, mp_incoming, result)
 
         if free_build:
             # D4: optimise_multi_period reports transfers_in=() for a free
