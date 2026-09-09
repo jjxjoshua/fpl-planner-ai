@@ -877,6 +877,28 @@ class MultiPeriodRoundPlan:
 
 
 @dataclass(frozen=True)
+class ForcedTransfer:
+    """One exact round-t transfer used by the Phase 4 what-if engine.
+
+    The pair is deliberately expressed as an OUT and an IN rather than as
+    final-squad membership. That makes the existing transfer continuity,
+    bank, free-transfer and hit equations do the accounting unchanged.
+    """
+
+    transfer_out: int
+    transfer_in: int
+
+
+@dataclass(frozen=True)
+class WhatIfScenario:
+    """A current-round counterfactual evaluated against the unconstrained
+    optimum. Later rounds remain the solver's diagnostic plan, not forced
+    commitments (blueprint §6.1: execute only week t)."""
+
+    forced_transfers: tuple[ForcedTransfer, ...]
+
+
+@dataclass(frozen=True)
 class MultiPeriodResult:
     """`optimise_multi_period`'s solved decision (D9). Round `t`'s (the
     SMALLEST key in the caller's `horizon_candidates`) full decision, in
@@ -901,12 +923,98 @@ class MultiPeriodResult:
     plan: tuple[MultiPeriodRoundPlan, ...] = ()  # every horizon round, t first — PLAN, NOT a commitment
 
 
+@dataclass(frozen=True)
+class WhatIfComparison:
+    """Unconstrained optimum versus one forced current-round scenario.
+
+    The `*_horizon_*` values intentionally exclude HiGHS tie-break and
+    free-transfer settle nudges. They are football-value diagnostics only:
+    gross expected points plus the real (negative) transfer hit points.
+    """
+
+    optimum: MultiPeriodResult
+    scenario: MultiPeriodResult
+    optimum_horizon_gross_expected_points: float
+    scenario_horizon_gross_expected_points: float
+    optimum_horizon_hit_points: int
+    scenario_horizon_hit_points: int
+    optimum_horizon_net_expected_points: float
+    scenario_horizon_net_expected_points: float
+    net_expected_points_delta: float  # scenario - optimum; negative means the forced scenario is worse
+
+
+def _canonical_forced_transfers(
+    forced_transfers: Sequence[ForcedTransfer], *, require_nonempty: bool = False
+) -> tuple[ForcedTransfer, ...]:
+    transfers = tuple(forced_transfers)
+    if require_nonempty and not transfers:
+        raise OptimiserError("what-if scenario must force at least one current-round transfer")
+
+    outs: set[int] = set()
+    ins: set[int] = set()
+    for forced in transfers:
+        if forced.transfer_out == forced.transfer_in:
+            raise OptimiserError(
+                f"forced transfer cannot buy and sell the same element={forced.transfer_out}"
+            )
+        if forced.transfer_out in outs:
+            raise OptimiserError(f"duplicate forced transfer_out={forced.transfer_out}")
+        if forced.transfer_in in ins:
+            raise OptimiserError(f"duplicate forced transfer_in={forced.transfer_in}")
+        outs.add(forced.transfer_out)
+        ins.add(forced.transfer_in)
+
+    overlap = sorted(outs & ins)
+    if overlap:
+        raise OptimiserError(
+            f"forced transfer element(s) appear in both transfer_out and transfer_in: {overlap}"
+        )
+    return tuple(sorted(transfers, key=lambda forced: (forced.transfer_out, forced.transfer_in)))
+
+
+def _validate_forced_current_round_transfers(
+    forced_transfers: Sequence[ForcedTransfer],
+    *,
+    t0: int,
+    candidate_ids: Sequence[int],
+    incoming_state: SquadState | None,
+) -> None:
+    if not forced_transfers:
+        return
+    if incoming_state is None:
+        raise OptimiserError(
+            f"round {t0}: forced transfers require incoming_state; a free build has no round-t transfer variables"
+        )
+
+    candidates = set(candidate_ids)
+    held = set(incoming_state.element_ids)
+    for forced in forced_transfers:
+        if forced.transfer_out not in candidates:
+            raise OptimiserError(
+                f"round {t0}: forced transfer_out={forced.transfer_out} is not in the candidate pool"
+            )
+        if forced.transfer_in not in candidates:
+            raise OptimiserError(
+                f"round {t0}: forced transfer_in={forced.transfer_in} is not in the candidate pool"
+            )
+        if forced.transfer_out not in held:
+            raise OptimiserError(
+                f"round {t0}: forced transfer_out={forced.transfer_out} is not held in incoming_state"
+            )
+        if forced.transfer_in in held:
+            raise OptimiserError(
+                f"round {t0}: forced transfer_in={forced.transfer_in} is already held in incoming_state"
+            )
+
+
 def optimise_multi_period(
     horizon_candidates: Mapping[int, Sequence[OptimiserCandidate]],
     rules: SquadRules,
     transfer_rules: TransferRules,
     incoming_state: SquadState | None = None,
     config: OptimiserConfig = OptimiserConfig(),
+    *,
+    forced_transfers: Sequence[ForcedTransfer] = (),
 ) -> MultiPeriodResult:
     """Build and solve the receding-horizon MILP over every round key in
     `horizon_candidates` (D1) — squad/XI/captain per round, transfers/hits/
@@ -927,6 +1035,7 @@ def optimise_multi_period(
     under-filled position pool, a non-`kOptimal` solve, or any round's
     solved bench losing its structurally-implied GK slot (mirrors
     `optimise_squad`'s own checks, applied per round)."""
+    canonical_forced_transfers = _canonical_forced_transfers(forced_transfers)
     if not horizon_candidates:
         raise OptimiserError("optimise_multi_period called with an empty horizon_candidates mapping")
 
@@ -951,6 +1060,13 @@ def optimise_multi_period(
     if not base:
         raise OptimiserError(f"round {t0}'s candidate list is empty")
     ids = sorted(base)
+
+    _validate_forced_current_round_transfers(
+        canonical_forced_transfers,
+        t0=t0,
+        candidate_ids=ids,
+        incoming_state=incoming_state,
+    )
 
     # D2, VALIDATED: identical element set and identical price/position/team
     # in every round, against round t0's — see module section above.
@@ -1025,6 +1141,15 @@ def optimise_multi_period(
     for r in transfer_rounds:
         in_vars[r] = h.addVariables(ids, type=highspy.HighsVarType.kInteger, lb=0, ub=1, name=[f"in_{i}_{r}" for i in ids])
         out_vars[r] = h.addVariables(ids, type=highspy.HighsVarType.kInteger, lb=0, ub=1, name=[f"out_{i}_{r}" for i in ids])
+
+    # S11 what-if seam: force the ACTUAL executed-round transfer variables,
+    # not squad membership. Every downstream legality/accounting mechanism
+    # (continuity, rolling bank, FT spending and hits) therefore remains the
+    # exact same model as the unconstrained solve. Forces are t0-only;
+    # forward rounds stay diagnostic plans and are re-optimised normally.
+    for forced in canonical_forced_transfers:
+        h.addConstr(out_vars[t0][forced.transfer_out] == 1, name=f"what_if_out_{forced.transfer_out}_{t0}")
+        h.addConstr(in_vars[t0][forced.transfer_in] == 1, name=f"what_if_in_{forced.transfer_in}_{t0}")
 
     # --- per-round squad composition / formation / captain block --------
     # (module section above: "exactly the t-th slice" of optimise_squad's
@@ -1241,6 +1366,86 @@ def optimise_multi_period(
         objective_value=float(h.getObjectiveValue()),
         solver_status=status.name,
         plan=plan,
+    )
+
+
+def _horizon_football_value(
+    result: MultiPeriodResult, transfer_rules: TransferRules
+) -> tuple[float, int, float]:
+    """Return (gross expected points, hit points, net expected points).
+
+    This is deliberately not `result.objective_value`: the raw solver
+    objective also contains tiny deterministic tie-break / FT-settle terms
+    that are useful to HiGHS but meaningless in a user-facing what-if.
+    """
+    gross = float(sum(round_plan.expected_points for round_plan in result.plan))
+    hit_points = int(sum(transfer_rules.hit_cost * round_plan.hits for round_plan in result.plan))
+    return gross, hit_points, gross + hit_points
+
+
+def evaluate_what_if(
+    horizon_candidates: Mapping[int, Sequence[OptimiserCandidate]],
+    rules: SquadRules,
+    transfer_rules: TransferRules,
+    *,
+    incoming_state: SquadState | None,
+    scenario: WhatIfScenario,
+    config: OptimiserConfig = OptimiserConfig(),
+) -> WhatIfComparison:
+    """Compare a forced round-t transfer scenario with the same MILP's
+    unconstrained optimum.
+
+    No points or hit arithmetic is reimplemented here. Both arms call
+    `optimise_multi_period`; the constrained arm merely pins selected t0
+    `in`/`out` binaries to 1. A `-4` therefore appears only when the
+    existing free-transfer equations say the forced move actually costs a
+    hit. A structurally valid but impossible scenario raises rather than
+    relaxing the force.
+    """
+    forced = _canonical_forced_transfers(scenario.forced_transfers, require_nonempty=True)
+
+    # Reject a bad force before paying for the unconstrained baseline solve.
+    # Full horizon/D2 validation still belongs to optimise_multi_period.
+    if horizon_candidates:
+        t0 = min(horizon_candidates)
+        _validate_forced_current_round_transfers(
+            forced,
+            t0=t0,
+            candidate_ids=[candidate.element for candidate in horizon_candidates[t0]],
+            incoming_state=incoming_state,
+        )
+
+    optimum = optimise_multi_period(
+        horizon_candidates,
+        rules,
+        transfer_rules,
+        incoming_state=incoming_state,
+        config=config,
+    )
+    try:
+        constrained = optimise_multi_period(
+            horizon_candidates,
+            rules,
+            transfer_rules,
+            incoming_state=incoming_state,
+            config=config,
+            forced_transfers=forced,
+        )
+    except OptimiserError as exc:
+        raise OptimiserError(f"what-if scenario could not be solved: {exc}") from exc
+
+    optimum_gross, optimum_hit_points, optimum_net = _horizon_football_value(optimum, transfer_rules)
+    scenario_gross, scenario_hit_points, scenario_net = _horizon_football_value(constrained, transfer_rules)
+    return WhatIfComparison(
+        optimum=optimum,
+        scenario=constrained,
+        optimum_horizon_gross_expected_points=optimum_gross,
+        scenario_horizon_gross_expected_points=scenario_gross,
+        optimum_horizon_hit_points=optimum_hit_points,
+        scenario_horizon_hit_points=scenario_hit_points,
+        optimum_horizon_net_expected_points=optimum_net,
+        scenario_horizon_net_expected_points=scenario_net,
+        net_expected_points_delta=scenario_net - optimum_net,
     )
 
 

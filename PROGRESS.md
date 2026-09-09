@@ -1116,8 +1116,17 @@ read/rollup out of the per-player loop — and it is worth ~40-50% of the E7 gat
   - **A counterfactual that is NOT a result and must not be quoted as one:** H=6 without its GW2-3
     hits would be 2079 v 2071. Deleting a decision is not an available move; the number says only
     that the season is close and the cost is somewhat concentrated.
-- [ ] (3) **S11 · What-if engine.** Evaluate a forced scenario ("what if I take a -4 for X?")
-  against the optimum. Small once S8 exists; it is the last named E7 deliverable in blueprint §7
+- [x] (3) **S11 · What-if engine — DONE `09-10`.** Evaluate a forced scenario ("what if I take a
+  -4 for X?") against the optimum. `ForcedTransfer` + `WhatIfScenario` pin exact **round-t**
+  transfer `in`/`out` binaries inside the existing `optimise_multi_period` MILP; free-transfer,
+  bank and hit accounting are therefore reused unchanged, and later-round `plan` entries remain
+  diagnostic rather than commitments. `evaluate_what_if` solves the same model unconstrained and
+  constrained and reports horizon gross / hit / net expected points without leaking HiGHS's
+  tie-break/FT-settle nudges into the user-facing comparison. Invalid ownership/identity forces
+  raise before solving; a valid-but-impossible forced swap surfaces infeasibility rather than
+  relaxing the scenario. **Gate:** fail-first import proved the API absent; 5 focused what-if tests
+  pass, 69/69 non-slow optimiser tests pass, edit-integrity passes for both changed Python files,
+  and the full non-slow suite is **1454 passed, 4 skipped, 81 deselected**.
 
 **Sprint total 51** (46 as groomed `09-04`, plus S9's re-estimate 3 -> 8), plus the (2) live-season guard pulled into E6 above. **Grooming is incremental**
 — S1 and S2's pilots are expected to re-shape S3 and S8, and that is the point
@@ -1125,7 +1134,9 @@ read/rollup out of the per-player loop — and it is worth ~40-50% of the E7 gat
 pair is punch-carded at registration and at every re-estimate**, so calibration work stops needing
 `git log -S` over this file.
 
-- **Gate:** see the ruling above — H=6 beats H=1 under identical transfer rules, three seasons
+- **Gate: FAILED 0/3.** See the ruling above: under identical transfer rules H=6 loses to H=1 net
+  in 2023-24 and 2024-25 and ties in 2025-26. S11 completes the named Phase 4 deliverables but does
+  **not** change or waive this failed phase gate.
 
 ## E8 · Distributions + rank-aware — *Phase 5*
 

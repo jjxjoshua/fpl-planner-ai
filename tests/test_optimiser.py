@@ -43,6 +43,7 @@ from fplai.backtest.rules import (
 from fplai.backtest.squad import PlayerCandidate, Squad, validate_squad
 from fplai.features import FixtureFeatureAssemblyParams
 from fplai.optimiser import (
+    ForcedTransfer,
     HorizonStrategy,
     MILPStrategy,
     ModelStackParams,
@@ -51,6 +52,7 @@ from fplai.optimiser import (
     OptimiserConfig,
     OptimiserError,
     TrailingProxyHorizonSource,
+    WhatIfScenario,
     _candidates_from_view,
     _decision_from_result,
     _EmpiricalPointsDistribution,
@@ -58,6 +60,7 @@ from fplai.optimiser import (
     _trailing_points_distributions,
     build_decision_calendar,
     collapse_to_expected_points,
+    evaluate_what_if,
     optimise_multi_period,
     optimise_squad,
 )
@@ -1567,6 +1570,151 @@ def test_optimise_multi_period_banks_a_transfer_when_two_together_beat_one_now_p
     # objective (both runs share every other term) should favour the
     # banked, hit-free path.
     assert banked.objective_value > capped.objective_value
+
+
+# ---------------------------------------------------------------------------
+# What-if engine -- Phase 4, E7, story S11. A what-if is the SAME
+# multi-period MILP solved twice: once unconstrained, once with exact
+# round-t transfer variables pinned. The comparison reports football value
+# (gross expected points plus hit points), never the raw tie-break-bearing
+# HiGHS objective.
+# ---------------------------------------------------------------------------
+
+
+def test_evaluate_what_if_forced_second_transfer_turns_one_free_transfer_into_one_hit():
+    """The force must land on the actual in/out variables, not merely final
+    squad membership. With one FT and two +1 upgrades, the ordinary optimum
+    takes one. Forcing both exact swaps makes the second transfer a real hit.
+    """
+    horizon = {20: _mp_round({9: 5.0, 19: 5.0})}
+    incoming = _mp_incoming_state(bank_tenths=100, free_transfers=1)
+    tr = TransferRules(free_transfers_per_gameweek=1, max_banked_transfers=1, hit_cost=-4)
+    scenario = WhatIfScenario(
+        forced_transfers=(
+            ForcedTransfer(transfer_out=8, transfer_in=9),
+            ForcedTransfer(transfer_out=18, transfer_in=19),
+        )
+    )
+
+    comparison = evaluate_what_if(horizon, _RULES, tr, incoming_state=incoming, scenario=scenario)
+
+    assert comparison.optimum.hits == 0
+    assert len(comparison.optimum.transfers_in) == 1
+    assert comparison.scenario.transfers_out == (8, 18)
+    assert comparison.scenario.transfers_in == (9, 19)
+    assert comparison.scenario.hits == 1
+    assert comparison.scenario_horizon_hit_points == -4
+    assert comparison.optimum_horizon_hit_points == 0
+    assert comparison.scenario_horizon_gross_expected_points == sum(p.expected_points for p in comparison.scenario.plan)
+    assert comparison.scenario_horizon_net_expected_points == (
+        comparison.scenario_horizon_gross_expected_points + comparison.scenario_horizon_hit_points
+    )
+    assert comparison.net_expected_points_delta < 0.0
+
+
+def test_evaluate_what_if_force_applies_only_to_executed_round_not_the_forward_plan():
+    """A forced action is a round-t counterfactual, not a commitment to the
+    diagnostic forward plan. Make the forced player excellent now and awful
+    next round so the optimal constrained plan reverses the move at t+1.
+    """
+    horizon = {
+        20: _mp_round({9: 20.0, 14: 100.0}),
+        21: _mp_round({8: 20.0, 9: -10.0, 14: 100.0}),
+    }
+    incoming = _mp_incoming_state(bank_tenths=100, free_transfers=1)
+    tr = TransferRules(free_transfers_per_gameweek=1, max_banked_transfers=2, hit_cost=-4)
+    scenario = WhatIfScenario(forced_transfers=(ForcedTransfer(transfer_out=8, transfer_in=9),))
+
+    comparison = evaluate_what_if(horizon, _RULES, tr, incoming_state=incoming, scenario=scenario)
+
+    assert comparison.scenario.transfers_out == (8,)
+    assert comparison.scenario.transfers_in == (9,)
+    assert comparison.scenario.squad_element_ids == comparison.scenario.plan[0].squad_element_ids
+    assert comparison.scenario.plan[1].transfers_out == (9,)
+    assert comparison.scenario.plan[1].transfers_in == (8,)
+    assert incoming == _mp_incoming_state(bank_tenths=100, free_transfers=1)  # evaluation is pure with respect to caller state
+
+
+def test_evaluate_what_if_rejects_invalid_current_round_transfer_identity():
+    horizon = {20: _mp_round({})}
+    incoming = _mp_incoming_state(bank_tenths=100, free_transfers=1)
+    tr = transfer_rules_for_season("2025-26")
+
+    with pytest.raises(OptimiserError, match=r"forced transfer_out=999.*candidate"):
+        evaluate_what_if(
+            horizon,
+            _RULES,
+            tr,
+            incoming_state=incoming,
+            scenario=WhatIfScenario(forced_transfers=(ForcedTransfer(transfer_out=999, transfer_in=9),)),
+        )
+
+    with pytest.raises(OptimiserError, match=r"transfer_out=9.*not held"):
+        evaluate_what_if(
+            horizon,
+            _RULES,
+            tr,
+            incoming_state=incoming,
+            scenario=WhatIfScenario(forced_transfers=(ForcedTransfer(transfer_out=9, transfer_in=19),)),
+        )
+
+    with pytest.raises(OptimiserError, match=r"transfer_in=7.*already held"):
+        evaluate_what_if(
+            horizon,
+            _RULES,
+            tr,
+            incoming_state=incoming,
+            scenario=WhatIfScenario(forced_transfers=(ForcedTransfer(transfer_out=8, transfer_in=7),)),
+        )
+
+
+def test_evaluate_what_if_surfaces_a_valid_but_infeasible_forced_swap():
+    """Baseline feasibility is established first. The same candidate set
+    then forces an impossibly expensive player in; the engine must surface
+    infeasibility rather than relax the force or return the baseline.
+    """
+    candidates = _mp_round({})
+    expensive = candidates[9]
+    candidates[9] = OptimiserCandidate(
+        element=expensive.element,
+        name=expensive.name,
+        position=expensive.position,
+        team=expensive.team,
+        price=1000,
+        points_dist=expensive.points_dist,
+    )
+    horizon = {20: candidates}
+    incoming = _mp_incoming_state(bank_tenths=0, free_transfers=1)
+    tr = transfer_rules_for_season("2025-26")
+
+    baseline = optimise_multi_period(horizon, _RULES, tr, incoming_state=incoming)
+    assert baseline.solver_status == "kOptimal"
+
+    with pytest.raises(OptimiserError, match=r"what-if scenario could not be solved.*did not solve to optimality"):
+        evaluate_what_if(
+            horizon,
+            _RULES,
+            tr,
+            incoming_state=incoming,
+            scenario=WhatIfScenario(forced_transfers=(ForcedTransfer(transfer_out=8, transfer_in=9),)),
+        )
+
+
+def test_evaluate_what_if_is_deterministic_when_forced_transfer_order_changes():
+    horizon = {20: _mp_round({9: 5.0, 19: 5.0})}
+    incoming = _mp_incoming_state(bank_tenths=100, free_transfers=1)
+    tr = TransferRules(free_transfers_per_gameweek=1, max_banked_transfers=1, hit_cost=-4)
+    a = ForcedTransfer(transfer_out=8, transfer_in=9)
+    b = ForcedTransfer(transfer_out=18, transfer_in=19)
+
+    first = evaluate_what_if(
+        horizon, _RULES, tr, incoming_state=incoming, scenario=WhatIfScenario(forced_transfers=(a, b))
+    )
+    reversed_order = evaluate_what_if(
+        horizon, _RULES, tr, incoming_state=incoming, scenario=WhatIfScenario(forced_transfers=(b, a))
+    )
+
+    assert first == reversed_order
 
 
 # ---------------------------------------------------------------------------
