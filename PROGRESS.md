@@ -9,7 +9,7 @@ season-picking). Full result table and caveats in the E6 section below; audit at
 
 Phase 0 done · Phase 1 gate PASSED · E2b COMPLETE · Phase 2 (E5) COMPLETE, gate PASSED `08-29`,
 blocking condition CLOSED `08-29` · **Phase 3 (E6) COMPLETE, gate PASSED `09-03`** ·
-**Phase 4 (E7) OPEN — groomed `09-04`, 11 stories, gate decided. S9 DONE `09-06`; S10 and S11 remain.** Sprint total re-estimated 46 -> 51: S9 was registered a 3 and re-estimated an 8 before dispatch, on probes showing its registered gate was unreachable by the wiring alone (see its entry in the E7 section).
+**Phase 4 (E7) OPEN — all 11 named deliverable stories are implemented, but the phase gate remains FAILED 0/3.** S10 ran the gate, S10a diagnosed churn, and S11 completed the what-if engine. The current work is evidence-first remediation of the failed gate; Phase 5 remains blocked.
 
 **This file is the Architect's.** Registered before dispatch, checkpointed at pilot review, closed
 on pasted evidence (`docs/wiki/dispatch-protocol.md` rules 9 and 11). The Scrum Master is summoned
@@ -1116,6 +1116,15 @@ read/rollup out of the per-player loop — and it is worth ~40-50% of the E7 gat
   - **A counterfactual that is NOT a result and must not be quoted as one:** H=6 without its GW2-3
     hits would be 2079 v 2071. Deleting a decision is not an available move; the number says only
     that the season is close and the cost is somewhat concentrated.
+- [~] (5) **S10b · Transfer-value calibration audit — IN PROGRESS `09-10`.** Evidence-only pilot
+  before any objective/model change. Measure the solver's ex-ante value of H=6 transfer decisions,
+  especially paid-hit gameweeks, against realised outcomes and the myopic arm; distinguish cold-start
+  churn from genuine marginal-value miscalibration. **Owned paths:** `scripts/run_e7_gate.py`, a new
+  pure analysis script + tests, `PROGRESS.md`, and E7 wiki evidence. **No numerical model or optimiser
+  objective edits in this story. Gate:** a reproducible diagnostic report with the decision trace
+  fields needed to explain why a paid transfer looked worthwhile at decision time. Start with the
+  worst season (2023-24); replicate to all three gate seasons only after the pilot is reviewed and
+  the historical store is available in this migrated repo.
 - [x] (3) **S11 · What-if engine — DONE `09-10`.** Evaluate a forced scenario ("what if I take a
   -4 for X?") against the optimum. `ForcedTransfer` + `WhatIfScenario` pin exact **round-t**
   transfer `in`/`out` binaries inside the existing `optimise_multi_period` MILP; free-transfer,
