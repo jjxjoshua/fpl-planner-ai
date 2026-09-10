@@ -701,14 +701,18 @@ def optimise_squad(
 # ## D6 — free transfers and hits, and the identity that avoids a second
 # `max(0, ...)` linearisation
 #
-# `hits_t` must equal `max(0, transfers_t - free_transfers_t)` EXACTLY.
-# A lower bound plus the negative hit-cost objective is not sufficient here:
-# `hits_t` also feeds the next round's free-transfer recurrence below. S10b
-# exposed a real counterexample at 2023-24 GW23 where the solver inflated the
-# current hit count by one, paid the same total horizon hit cost later, and
-# used the fake hit to manufacture an extra future free transfer. The exact
-# max therefore uses one binary selector per transfer round (standard big-M
-# linearisation), rather than relying on objective pressure for equality.
+# `hits_t` must equal `max(0, transfers_t - free_transfers_t)` EXACTLY whenever
+# it feeds the next round's free-transfer recurrence. A lower bound plus the
+# negative hit-cost objective is not sufficient on those rounds: S10b exposed
+# a real counterexample at 2023-24 GW23 where the solver inflated the current
+# hit count by one, paid the same total horizon hit cost later, and used the
+# fake hit to manufacture an extra future free transfer. Those non-terminal
+# rounds therefore use one binary selector (standard big-M linearisation).
+# A terminal round -- including every H=1 solve -- has no future FT state to
+# influence, so the original lower bound remains sufficient there: the
+# negative hit-cost objective alone pins `hits_t` to the exact minimum. Keeping
+# that terminal formulation unchanged also avoids perturbing the myopic arm's
+# MILP merely to enforce an equality that its objective already guarantees.
 #
 # The BRIEF's own recurrence is `free_transfers_t = min(max_banked,
 # free_transfers_{t-1} - spent_{t-1} + per_gameweek)`. Read literally, that
@@ -1259,17 +1263,20 @@ def optimise_multi_period(
         bank_after[r] = bank_r
         ft_available[r] = ft_prev
 
-        # D6: hits_r == max(0, transfers_r - ft_prev), exactly. The lower
-        # bound alone is insufficient because hits_r also feeds the FT
-        # recurrence: an inflated hit can otherwise manufacture a future FT
-        # without changing total horizon hit cost (S10b GW23 regression).
+        # D6: hits_r >= max(0, transfers_r - ft_prev) is enough on a terminal
+        # round because hit_cost < 0 pins it tight and nothing else consumes
+        # hits_r. On a non-terminal round, hits_r also feeds the next-round FT
+        # recurrence, so enforce the max exactly: otherwise an inflated hit can
+        # manufacture a future FT without changing total horizon hit cost
+        # (S10b GW23 regression).
         hits_r = h.addVariable(lb=0, ub=float(rules.squad_size), type=highspy.HighsVarType.kInteger, name=f"hits_{r}")
-        hit_active_r = h.addVariable(lb=0, ub=1, type=highspy.HighsVarType.kInteger, name=f"hit_active_{r}")
         transfer_minus_ft = transfers_r - ft_prev
-        hit_big_m = float(rules.squad_size + transfer_rules.max_banked_transfers)
         h.addConstr(hits_r >= transfer_minus_ft, name=f"hits_lb_{r}")
-        h.addConstr(hits_r <= transfer_minus_ft + hit_big_m * (1 - hit_active_r), name=f"hits_exact_pos_{r}")
-        h.addConstr(hits_r <= hit_big_m * hit_active_r, name=f"hits_exact_zero_{r}")
+        if has_next:
+            hit_active_r = h.addVariable(lb=0, ub=1, type=highspy.HighsVarType.kInteger, name=f"hit_active_{r}")
+            hit_big_m = float(rules.squad_size + transfer_rules.max_banked_transfers)
+            h.addConstr(hits_r <= transfer_minus_ft + hit_big_m * (1 - hit_active_r), name=f"hits_exact_pos_{r}")
+            h.addConstr(hits_r <= hit_big_m * hit_active_r, name=f"hits_exact_zero_{r}")
         hits_vars[r] = hits_r
 
         if has_next:

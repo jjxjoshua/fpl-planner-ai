@@ -1135,9 +1135,19 @@ read/rollup out of the per-player loop — and it is worth ~40-50% of the E7 gat
     A synthetic fail-first regression reproduced `2` solver hits where the real ledger required
     `1`; it passes after the fix. Architect validation: focused optimiser/E7/S10b partition
     **104 passed, 8 deselected**; full non-slow suite **1472 passed, 81 deselected**; `git diff
-    --check` clean apart from the repo's existing LF/CRLF warning. The 2023-24 pilot must now be
-    rerun from a fresh value log, and the previous E7 gate result must be revalidated because H=6
-    decisions may have been made against an invalid future free-transfer plan.
+    --check` clean apart from the repo's existing LF/CRLF warning.
+  - **First corrected full 2023-24 rerun completed and reconciled, but exposed an H=1 comparability
+    blocker.** All 76 value rows were written (38 per arm) and diagnostic hit totals matched replay
+    exactly: H=6 `-108`, H=1 `-20`. The run scored H=6 **2069** vs H=1 **2013** (`+56`), compared
+    with the original recorded gate's 2047 vs 2071. H=1 should not need the new exact-hit binary:
+    with a one-round horizon there is no future FT recurrence for an inflated hit to influence, and
+    the negative hit-cost objective already pins the lower bound tight. Because adding the binary
+    can still perturb HiGHS' branch/tie path, the formulation was narrowed so the exact big-M max is
+    used only on non-terminal rounds that feed a future FT state; terminal rounds, including every
+    H=1 solve, keep the original lower-bound formulation. The synthetic fake-FT regression still
+    passes after this narrowing; focused optimiser/E7/S10b remains **104 passed, 8 deselected** and
+    full non-slow remains **1472 passed, 81 deselected**. A second fresh 2023-24 rerun is now required
+    to obtain a comparable H=1 baseline and a trustworthy corrected H=6-vs-H=1 verdict.
 - [x] (3) **S11 · What-if engine — DONE `09-10`.** Evaluate a forced scenario ("what if I take a
   -4 for X?") against the optimum. `ForcedTransfer` + `WhatIfScenario` pin exact **round-t**
   transfer `in`/`out` binaries inside the existing `optimise_multi_period` MILP; free-transfer,
