@@ -1482,6 +1482,38 @@ def test_optimise_multi_period_hit_cost_sign_is_negative_not_a_reward():
     assert len(result.transfers_in) == 1  # exactly one of the two +1 upgrades, never both
 
 
+def test_optimise_multi_period_hits_are_exact_and_cannot_manufacture_future_free_transfers():
+    """Regression for the S10b GW23 reconciliation failure.
+
+    Two strong swaps are optimal in each of two consecutive rounds. With one
+    free transfer entering t0, the real ledger is therefore one hit at t0 and
+    one hit at t1. A lower-bound-only `hits >= transfers - free_transfers`
+    formulation can instead overstate t0 hits by one, feed that fake hit into
+    the leftover-FT identity, and arrive at t1 with two free transfers. The
+    total horizon hit cost is unchanged, so the tiny FT-settle nudge can make
+    that invalid timing win even though replay correctly charges only one hit
+    at t0.
+    """
+
+    horizon = {
+        20: _mp_round({9: 20.0, 10: -10.0, 14: 100.0, 19: 20.0, 20: -10.0}),
+        21: _mp_round({9: -10.0, 10: 20.0, 14: 100.0, 19: -10.0, 20: 20.0}),
+    }
+    incoming = _mp_incoming_state(bank_tenths=100, free_transfers=1)
+    tr = TransferRules(free_transfers_per_gameweek=1, max_banked_transfers=2, hit_cost=-4)
+
+    result = optimise_multi_period(horizon, _RULES, tr, incoming_state=incoming)
+
+    assert len(result.plan[0].transfers_in) == 2
+    assert result.plan[0].free_transfers_available == 1
+    assert result.plan[0].hits == 1
+    assert len(result.plan[1].transfers_in) == 2
+    assert result.plan[1].free_transfers_available == 1
+    assert result.plan[1].hits == 1
+    for round_plan in result.plan:
+        assert round_plan.hits == max(0, len(round_plan.transfers_in) - round_plan.free_transfers_available)
+
+
 def test_optimise_multi_period_banks_a_transfer_when_two_together_beat_one_now_plus_a_hit():
     """GATE 2. Two rounds (`t0`, `t0+1`), one incoming squad, `free_
     transfers=1`. Three opportunities compete for that one transfer:

@@ -1125,6 +1125,19 @@ read/rollup out of the per-player loop — and it is worth ~40-50% of the E7 gat
   fields needed to explain why a paid transfer looked worthwhile at decision time. Start with the
   worst season (2023-24); replicate to all three gate seasons only after the pilot is reviewed and
   the historical store is available in this migrated repo.
+  - **`09-10` pilot found an optimiser-accounting defect before the report could be accepted.** The
+    full 2023-24 S10b run reached GW23, then the reconciliation guard raised: optimiser diagnostic
+    hit points `-8` vs replay `-4`. Root cause: `hits_t` was only lower-bounded by
+    `transfers_t - free_transfers_t` while also feeding the future-FT recurrence, so an optimal
+    horizon plan could inflate a current hit and manufacture a future free transfer without
+    changing total horizon hit cost. Fixed by enforcing `hits_t == max(0, transfers_t - FT_t)`
+    exactly with a binary big-M linearisation; the hit-cost coefficient/objective is unchanged.
+    A synthetic fail-first regression reproduced `2` solver hits where the real ledger required
+    `1`; it passes after the fix. Architect validation: focused optimiser/E7/S10b partition
+    **104 passed, 8 deselected**; full non-slow suite **1472 passed, 81 deselected**; `git diff
+    --check` clean apart from the repo's existing LF/CRLF warning. The 2023-24 pilot must now be
+    rerun from a fresh value log, and the previous E7 gate result must be revalidated because H=6
+    decisions may have been made against an invalid future free-transfer plan.
 - [x] (3) **S11 · What-if engine — DONE `09-10`.** Evaluate a forced scenario ("what if I take a
   -4 for X?") against the optimum. `ForcedTransfer` + `WhatIfScenario` pin exact **round-t**
   transfer `in`/`out` binaries inside the existing `optimise_multi_period` MILP; free-transfer,

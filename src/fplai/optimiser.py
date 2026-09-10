@@ -701,12 +701,14 @@ def optimise_squad(
 # ## D6 — free transfers and hits, and the identity that avoids a second
 # `max(0, ...)` linearisation
 #
-# `hits_t >= transfers_t - free_transfers_t`, `hits_t >= 0`, both pinned by
-# the brief, both DEC INTEGER, and — because the objective's `hit_cost *
-# hits_t` term (negative `hit_cost`, D6's sign) always rewards a SMALLER
-# `hits_t` — HiGHS's own pressure to maximise the objective pushes `hits_t`
-# down to exactly `max(0, transfers_t - free_transfers_t)` at any optimum.
-# That is the textbook `max(0, x)` trick, exactly as the brief states it.
+# `hits_t` must equal `max(0, transfers_t - free_transfers_t)` EXACTLY.
+# A lower bound plus the negative hit-cost objective is not sufficient here:
+# `hits_t` also feeds the next round's free-transfer recurrence below. S10b
+# exposed a real counterexample at 2023-24 GW23 where the solver inflated the
+# current hit count by one, paid the same total horizon hit cost later, and
+# used the fake hit to manufacture an extra future free transfer. The exact
+# max therefore uses one binary selector per transfer round (standard big-M
+# linearisation), rather than relying on objective pressure for equality.
 #
 # The BRIEF's own recurrence is `free_transfers_t = min(max_banked,
 # free_transfers_{t-1} - spent_{t-1} + per_gameweek)`. Read literally, that
@@ -721,9 +723,9 @@ def optimise_squad(
 # it is a genuine second nonlinearity the brief's stated formula does not
 # actually avoid.
 #
-# It IS avoidable, without a second binary, by reusing `hits_t` itself.
-# Once `hits_t` is pinned to its true value (the paragraph above), the
-# identity
+# The SECOND max is still avoidable without another binary by reusing the
+# now-exact `hits_t` itself. Once `hits_t` is pinned to its true value (the
+# paragraph above), the identity
 #
 #     leftover_t := free_transfers_t - transfers_t + hits_t
 #
@@ -1257,10 +1259,17 @@ def optimise_multi_period(
         bank_after[r] = bank_r
         ft_available[r] = ft_prev
 
-        # D6: hits_r >= max(0, transfers_r - ft_prev), pinned tight by the
-        # objective's own hit_cost pressure (see module section above).
+        # D6: hits_r == max(0, transfers_r - ft_prev), exactly. The lower
+        # bound alone is insufficient because hits_r also feeds the FT
+        # recurrence: an inflated hit can otherwise manufacture a future FT
+        # without changing total horizon hit cost (S10b GW23 regression).
         hits_r = h.addVariable(lb=0, ub=float(rules.squad_size), type=highspy.HighsVarType.kInteger, name=f"hits_{r}")
-        h.addConstr(hits_r >= transfers_r - ft_prev, name=f"hits_lb_{r}")
+        hit_active_r = h.addVariable(lb=0, ub=1, type=highspy.HighsVarType.kInteger, name=f"hit_active_{r}")
+        transfer_minus_ft = transfers_r - ft_prev
+        hit_big_m = float(rules.squad_size + transfer_rules.max_banked_transfers)
+        h.addConstr(hits_r >= transfer_minus_ft, name=f"hits_lb_{r}")
+        h.addConstr(hits_r <= transfer_minus_ft + hit_big_m * (1 - hit_active_r), name=f"hits_exact_pos_{r}")
+        h.addConstr(hits_r <= hit_big_m * hit_active_r, name=f"hits_exact_zero_{r}")
         hits_vars[r] = hits_r
 
         if has_next:
