@@ -1,0 +1,110 @@
+name: Refresh FPL mirror
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 * * * *"
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/refresh-fpl-mirror.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: refresh-fpl-mirror
+  cancel-in-progress: true
+
+jobs:
+  refresh:
+    name: Fetch official FPL core payloads
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout publisher repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch official FPL payloads
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/fpl-mirror/latest"
+
+          curl --fail --silent --show-error --location \
+            --retry 3 --retry-delay 5 --connect-timeout 10 --max-time 45 \
+            -H "Accept: application/json" \
+            -H "User-Agent: jjxjoshua-fpl-mirror/1.0 (read-only backup)" \
+            "https://fantasy.premierleague.com/api/bootstrap-static/" \
+            -o "$RUNNER_TEMP/fpl-mirror/latest/fpl-bootstrap.json"
+
+          curl --fail --silent --show-error --location \
+            --retry 3 --retry-delay 5 --connect-timeout 10 --max-time 45 \
+            -H "Accept: application/json" \
+            -H "User-Agent: jjxjoshua-fpl-mirror/1.0 (read-only backup)" \
+            "https://fantasy.premierleague.com/api/fixtures/" \
+            -o "$RUNNER_TEMP/fpl-mirror/latest/fpl-fixtures.json"
+
+      - name: Validate payload shape
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require("node:fs");
+          const root = process.env.RUNNER_TEMP + "/fpl-mirror/latest";
+          const bootstrap = JSON.parse(fs.readFileSync(root + "/fpl-bootstrap.json", "utf8"));
+          const fixtures = JSON.parse(fs.readFileSync(root + "/fpl-fixtures.json", "utf8"));
+
+          if (!Array.isArray(bootstrap.events) || bootstrap.events.length < 1) {
+            throw new Error("bootstrap.events missing or empty");
+          }
+          if (!Array.isArray(bootstrap.teams) || bootstrap.teams.length < 20) {
+            throw new Error("bootstrap.teams is incomplete");
+          }
+          if (!Array.isArray(bootstrap.elements) || bootstrap.elements.length < 300) {
+            throw new Error("bootstrap.elements is incomplete");
+          }
+          if (!Array.isArray(fixtures) || fixtures.length < 1) {
+            throw new Error("fixtures payload missing or empty");
+          }
+          NODE
+
+      - name: Write freshness manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          NOW="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          printf '{"last_run":"%s","completed":true,"source":"official-fpl-api"}\n' "$NOW" \
+            > "$RUNNER_TEMP/fpl-mirror/latest/fetch-manifest.json"
+
+      - name: Publish mirror-runtime branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if git ls-remote --exit-code --heads origin refs/heads/mirror-runtime >/dev/null 2>&1; then
+            git fetch origin mirror-runtime
+            git switch --force-create mirror-runtime origin/mirror-runtime
+            rm -rf latest
+          else
+            git switch --orphan mirror-runtime
+            git rm -rf . >/dev/null 2>&1 || true
+          fi
+
+          mkdir -p latest
+          cp "$RUNNER_TEMP/fpl-mirror/latest/"* latest/
+          git add latest
+
+          if git diff --cached --quiet; then
+            echo "Mirror payload is unchanged."
+            exit 0
+          fi
+
+          git commit -m "data: refresh official FPL mirror"
+          git push origin mirror-runtime
