@@ -14,8 +14,9 @@ permissions:
   contents: write
 
 concurrency:
-  group: refresh-fpl-mirror
-  cancel-in-progress: true
+  # Serialize writes to the shared mirror-runtime branch with the daily history publisher.
+  group: fpl-mirror-publish
+  cancel-in-progress: false
 
 jobs:
   refresh:
