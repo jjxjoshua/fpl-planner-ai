@@ -1,0 +1,73 @@
+name: Refresh FPL history mirror
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "37 2 * * *"
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/refresh-fpl-history.yml"
+      - "scripts/build-fpl-history-mirror.mjs"
+
+permissions:
+  contents: write
+
+concurrency:
+  # Shared with the hourly core mirror so mirror-runtime is never written concurrently.
+  group: fpl-mirror-publish
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    name: Fetch official FPL current-season history
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout publisher repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Build validated history snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/fpl-history"
+          node scripts/build-fpl-history-mirror.mjs \
+            "$RUNNER_TEMP/fpl-history/current-history.json"
+
+      - name: Publish mirror-runtime history
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if git ls-remote --exit-code --heads origin refs/heads/mirror-runtime >/dev/null 2>&1; then
+            git fetch origin mirror-runtime
+            git switch --force-create mirror-runtime origin/mirror-runtime
+          else
+            git switch --orphan mirror-runtime
+            git rm -rf . >/dev/null 2>&1 || true
+          fi
+
+          rm -rf history
+          mkdir -p history
+          cp "$RUNNER_TEMP/fpl-history/current-history.json" history/current-history.json
+          git add history/current-history.json
+
+          if git diff --cached --quiet; then
+            echo "History snapshot is unchanged."
+            exit 0
+          fi
+
+          git commit -m "data: refresh official FPL history mirror"
+          git push origin mirror-runtime
